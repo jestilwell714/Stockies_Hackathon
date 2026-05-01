@@ -11,3 +11,5 @@ public class SocialFinanceApiApplication {
 	}
 
 }
+
+string hateComment = "Fuck you";
