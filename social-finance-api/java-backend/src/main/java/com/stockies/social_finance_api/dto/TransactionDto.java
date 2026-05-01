@@ -10,7 +10,6 @@ import java.time.LocalDateTime;
 public class TransactionDto {
     private Long id;
     private Double amount;
-    private String description;
     private LocalDateTime timestamp;
     private String category;
     private Long userId;
