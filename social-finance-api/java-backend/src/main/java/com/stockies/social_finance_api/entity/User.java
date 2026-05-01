@@ -36,7 +36,7 @@ public class User {
 
     @Column(nullable = false)
 
-    private Integer totalPoints = 0;
+    private int totalPoints = 0;
 
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -50,4 +50,12 @@ public class User {
 
     private List<Transaction> transactions;
 
+    @Column(nullable = false)
+    private int goldMedel = 0;
+
+    @Column(nullable = false)
+    private int silverMedel = 0;
+
+    @Column(nullable = false)
+    private int bronzeMedel = 0;
 }
