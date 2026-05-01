@@ -8,6 +8,6 @@ import lombok.Data;
 public class UserDto {
     private Long id;
     private String username;
-    private Double totalPoints;
-    private String groupName;
+    private Integer totalPoints;
+    private Long groupId;
 }
