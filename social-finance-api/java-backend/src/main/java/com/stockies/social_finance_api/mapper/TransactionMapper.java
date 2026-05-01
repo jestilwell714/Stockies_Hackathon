@@ -14,6 +14,7 @@ public class TransactionMapper implements Mapper<TransactionDto, Transaction> {
                 .id(entity.getId())
                 .timestamp(entity.getTimestamp())
                 .category(entity.getCategory())
+                .description(entity.getDescription())
                 .userId(entity.getUser().getId())
                 .build();
     }
@@ -24,6 +25,7 @@ public class TransactionMapper implements Mapper<TransactionDto, Transaction> {
                 .id(dto.getId())
                 .amount(dto.getAmount())
                 .timestamp(dto.getTimestamp())
+                .description(dto.getDescription())
                 .category(dto.getCategory())
                 .build();
     }
