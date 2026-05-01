@@ -1,6 +1,6 @@
-package com.stockies.javabackend.entity;
+package com.stockies.social_finance_api.entity;
 
-import com.stockies.social_finance_api.entity.User;
+import com.stockies.social_finance_api.entity.*;
 import jakarta.persistence.*;
 import lombok.*;
 import java.util.List;
@@ -19,6 +19,9 @@ public class FriendGroup {
 
     @Column(nullable = false, unique = true)
     private String groupName;
+
+    @ElementCollection
+    private List<String> bannedCategories;
 
     @Column(unique = true)
     private String inviteCode;
