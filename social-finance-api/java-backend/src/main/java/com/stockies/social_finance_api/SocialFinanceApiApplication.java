@@ -7,9 +7,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class SocialFinanceApiApplication {
 
 	public static void main(String[] args) {
+
 		SpringApplication.run(SocialFinanceApiApplication.class, args);
 	}
 
 }
-
-string hateComment = "Fuck you";
