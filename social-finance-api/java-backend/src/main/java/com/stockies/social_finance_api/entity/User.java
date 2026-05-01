@@ -1,7 +1,6 @@
 package com.stockies.social_finance_api.entity;
 
 import jakarta.persistence.*;
-import com.stockies.javabackend.entity.FriendGroup;
 import jakarta.transaction.Transaction;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
