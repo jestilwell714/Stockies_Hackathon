@@ -20,6 +20,4 @@ public class WeeklyChallenge {
     private LocalDate startDate;
 
     private LocalDate endDate;
-
-    private Boolean isActive = true;
 }
