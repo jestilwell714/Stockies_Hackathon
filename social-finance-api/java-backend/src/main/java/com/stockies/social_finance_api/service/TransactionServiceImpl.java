@@ -44,8 +44,14 @@ public class TransactionServiceImpl implements TransactionService{
         if (sameCategoryTransaction.isPresent()) {
             finalCategory = sameCategoryTransaction.get().getCategory();
         } else {
-            CategoryDto pythonResponse = categoriserService.getTransactionCategory(dto);
-            finalCategory = pythonResponse.getCategory();
+            try {
+                CategoryDto pythonResponse = categoriserService.getTransactionCategory(dto);
+                finalCategory = pythonResponse.getCategory();
+            } catch (Exception e) {
+                System.err.println("AI Service failed to categorize transaction: " + e.getMessage());
+
+                finalCategory = "Uncategorized";
+            }
         }
 
         transaction.setCategory(finalCategory);
