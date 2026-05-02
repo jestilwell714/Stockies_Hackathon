@@ -1,23 +1,43 @@
+import { NativeModules, Platform } from 'react-native';
+
 import type {
   ActivityFeedItem,
+  ApiDebugInfo,
+  DemoSession,
   HomeDashboard,
   LeaderboardRow,
   PointsLeaderboardRow,
   ProfileSummary,
   SkimpDataAdapter,
+  SkimpApiError,
   SpendingCategory,
   Transaction,
   WeeklyGraph,
   WeeklyRecap,
 } from './types';
 
-const env =
-  (globalThis as unknown as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? {};
+const configuredApiBaseUrl = process.env.EXPO_PUBLIC_SKIMP_API_URL?.replace(/\/$/, '');
 
-export const SKIMP_API_BASE_URL = (env.EXPO_PUBLIC_SKIMP_API_URL ?? 'http://localhost:8080').replace(/\/$/, '');
-export const API_CURRENT_USER_ID = env.EXPO_PUBLIC_SKIMP_CURRENT_USER_ID ?? '00000000-0000-0000-0000-000000000001';
-export const API_CURRENT_GROUP_ID = env.EXPO_PUBLIC_SKIMP_CURRENT_GROUP_ID ?? '00000000-0000-0000-0000-000000000100';
-export const API_CURRENT_CHALLENGE_ID = env.EXPO_PUBLIC_SKIMP_CURRENT_CHALLENGE_ID ?? '00000000-0000-0000-0000-000000000200';
+const inferExpoGoApiBaseUrl = () => {
+  if (Platform.OS === 'web') {
+    return undefined;
+  }
+
+  const scriptURL = NativeModules.SourceCode?.scriptURL as string | undefined;
+  const host = scriptURL?.match(/^[a-z]+:\/\/([^:/]+)/i)?.[1];
+  return host ? `http://${host}:8080` : undefined;
+};
+
+const usesPhoneLocalhost = (url?: string) => !url || /\/\/(localhost|127\.0\.0\.1)(:|\/|$)/.test(url);
+const inferredApiBaseUrl = inferExpoGoApiBaseUrl();
+
+export const SKIMP_API_BASE_URL = (
+  usesPhoneLocalhost(configuredApiBaseUrl) ? inferredApiBaseUrl ?? configuredApiBaseUrl : configuredApiBaseUrl
+  ?? 'http://localhost:8080'
+).replace(/\/$/, '');
+export const API_CURRENT_USER_ID = process.env.EXPO_PUBLIC_SKIMP_CURRENT_USER_ID ?? '00000000-0000-0000-0000-000000000001';
+export const API_CURRENT_GROUP_ID = process.env.EXPO_PUBLIC_SKIMP_CURRENT_GROUP_ID ?? '00000000-0000-0000-0000-000000000100';
+export const API_CURRENT_CHALLENGE_ID = process.env.EXPO_PUBLIC_SKIMP_CURRENT_CHALLENGE_ID ?? '00000000-0000-0000-0000-000000000200';
 
 const categories: SpendingCategory[] = [
   'eating_out',
@@ -51,23 +71,65 @@ const normalizeTransaction = (transaction: Transaction): Transaction => ({
 });
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${SKIMP_API_BASE_URL}${path}`, {
-    headers: {
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
-      ...init?.headers,
-    },
-    ...init,
-  });
+  const method = init?.method ?? 'GET';
+  const url = `${SKIMP_API_BASE_URL}${path}`;
+  const debug: ApiDebugInfo = {
+    baseUrl: SKIMP_API_BASE_URL,
+    path,
+    url,
+    method,
+    platform: Platform.OS,
+    configuredApiBaseUrl,
+    inferredApiBaseUrl,
+  };
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        ...init?.headers,
+      },
+      ...init,
+    });
+  } catch (error) {
+    const apiError = new Error('Server Unavaliable: network request failed') as SkimpApiError;
+    apiError.debug = {
+      ...debug,
+      causeMessage: error instanceof Error ? error.message : String(error),
+    };
+    throw apiError;
+  }
 
   if (!response.ok) {
-    throw new Error(`Server Unavaliable: ${response.status}`);
+    const apiError = new Error(`Server Unavaliable: ${response.status}`) as SkimpApiError;
+    apiError.debug = {
+      ...debug,
+      status: response.status,
+      statusText: response.statusText,
+    };
+    throw apiError;
   }
 
   return response.json() as Promise<T>;
 }
 
 export const apiSkimpAdapter: SkimpDataAdapter = {
+  async joinDemo(displayName) {
+    const session = await request<DemoSession>('/api/demo/join', {
+      method: 'POST',
+      body: JSON.stringify({ displayName }),
+    });
+
+    return {
+      ...session,
+      userId: String(session.userId),
+      groupId: String(session.groupId),
+      challengeId: String(session.challengeId),
+    };
+  },
+
   async getHomeDashboard(userId) {
     const dashboard = await request<HomeDashboard>(`/api/dashboard?userId=${encodeURIComponent(userId)}`);
     return {

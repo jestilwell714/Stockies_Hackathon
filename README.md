@@ -4,11 +4,15 @@ Existing Expo frontend, Java Spring backend, Python classifier, and Supabase Pos
 
 ## Demo Loop
 
-1. Tap **Simulate Transaction** in the Expo app.
-2. The frontend calls the Java backend.
-3. Java sends the transaction to the Python classifier.
-4. Java saves the categorized transaction to Postgres/H2.
-5. The frontend polls the Java backend and refreshes the live feed, weekly graph, and leaderboard.
+1. Start the Python classifier, Java backend, and Expo frontend.
+2. Each participant enters their name on the Expo join screen.
+3. The backend creates a demo user and assigns them to a demo team with up to 8 people.
+4. Run `./scripts/run-demo-week.sh` from the repo root.
+5. The script sends transactions to the Java backend over about two minutes.
+6. Java sends each transaction to the Python classifier.
+7. Java saves the categorized transaction to Supabase Postgres.
+8. The frontend polls the Java backend and refreshes the live feed, weekly graph, and leaderboard.
+9. Near the end, the script rolls every demo team into a new week and sends a few more transactions.
 
 If the Java backend is down, the app shows **Server Unavaliable** and does not fall back to mock data.
 
@@ -27,14 +31,22 @@ Default classifier URL: `http://localhost:8000/classify-one`.
 
 ## Java Backend
 
-Local H2 demo:
+Supabase demo:
 
 ```bash
-cd social-finance-api/java-backend
-./mvnw spring-boot:run
+cp social-finance-api/java-backend/.env.example social-finance-api/java-backend/.env
+open social-finance-api/java-backend/.env
 ```
 
-The backend listens on `http://localhost:8080`. Demo seed data is inserted only when the users table is empty.
+Set `SPRING_DATASOURCE_PASSWORD` to your real Supabase database password, then start the backend:
+
+```bash
+./scripts/run-backend.sh
+```
+
+The backend listens on `http://localhost:8080`. Demo seed data is inserted only when the users table is empty. The seeder creates 8 users, one friend group, banned categories, 8 weekly challenges, and 2 months of mock transactions.
+
+The backend intentionally has no runtime H2 fallback. If `.env` is missing or Supabase is unreachable, Spring Boot fails to start and the frontend shows **Server Unavaliable** instead of writing to a local in-memory database.
 
 Useful endpoints:
 
@@ -45,6 +57,10 @@ GET  /api/groups/00000000-0000-0000-0000-000000000100/points-leaderboard
 GET  /api/groups/00000000-0000-0000-0000-000000000100/activity-feed?limit=8
 GET  /api/users/00000000-0000-0000-0000-000000000001/transactions
 POST /api/transactions/simulate
+POST /api/demo/join
+GET  /api/demo/participants
+POST /api/demo/reset-live-week
+POST /api/demo/roll-week
 ```
 
 Simulate payload:
@@ -75,6 +91,12 @@ export APP_SEED_DEMO_DATA='true'
 
 Set `APP_SEED_DEMO_DATA=false` if your Supabase database already has users, groups, and a weekly challenge.
 
+You can also put these values in `social-finance-api/java-backend/.env` and start the backend with:
+
+```bash
+./scripts/run-backend.sh
+```
+
 Equivalent placeholders live in:
 
 ```text
@@ -97,6 +119,35 @@ drop table if exists friend_groups cascade;
 
 Then restart the Java backend with `APP_SEED_DEMO_DATA=true`.
 
+## Two-Minute Demo Script
+
+Start all three services first:
+
+```bash
+# terminal 1
+cd social-finance-api/python-classifier
+source .venv/bin/activate
+python main_classifier.py
+
+# terminal 2
+cd social-finance-api/java-backend
+./mvnw spring-boot:run
+
+# terminal 3
+cd front-end
+npm start
+```
+
+Then run the scripted transaction stream from the repo root:
+
+```bash
+API_BASE_URL=http://localhost:8080 ./scripts/run-demo-week.sh
+```
+
+Before running the script, have participants open the Expo app and enter their name. The backend assigns new participants into `Demo Team 1`, `Demo Team 2`, and so on, with up to 8 people per team.
+
+The script discovers all joined users through `GET /api/demo/participants`, resets every live demo team, sends demo transactions every few seconds across those users, rolls every team into a new week, then sends a final burst of transactions. Keep the Expo app open on the home or leaderboard tab to see each team's live feed and leaderboard change while it runs.
+
 ## Expo Frontend
 
 ```bash
@@ -112,10 +163,9 @@ Frontend env:
 
 ```bash
 EXPO_PUBLIC_SKIMP_API_URL=http://localhost:8080
-EXPO_PUBLIC_SKIMP_CURRENT_USER_ID=00000000-0000-0000-0000-000000000001
-EXPO_PUBLIC_SKIMP_CURRENT_GROUP_ID=00000000-0000-0000-0000-000000000100
-EXPO_PUBLIC_SKIMP_CURRENT_CHALLENGE_ID=00000000-0000-0000-0000-000000000200
 ```
+
+The app stores the joined demo user/group on the device with AsyncStorage. To rejoin as a different person during testing, clear Expo app storage or reinstall the app.
 
 ## Verification
 

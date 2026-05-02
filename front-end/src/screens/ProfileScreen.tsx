@@ -24,7 +24,7 @@ type ProfileScreenProps = {
 export function ProfileScreen({ adapter, currentUserId, groupId, challengeId, onOpenMemories }: ProfileScreenProps) {
   const [summary, setSummary] = useState<ProfileSummary>();
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
-  const [serverError, setServerError] = useState(false);
+  const [serverError, setServerError] = useState<unknown>();
   const [showTransactions, setShowTransactions] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
 
@@ -36,13 +36,13 @@ export function ProfileScreen({ adapter, currentUserId, groupId, challengeId, on
       .then(([nextSummary, nextTransactions]) => {
         setSummary(nextSummary);
         setAllTransactions(nextTransactions);
-        setServerError(false);
+        setServerError(undefined);
       })
-      .catch(() => setServerError(true));
+      .catch((error) => setServerError(error));
   }, [adapter, challengeId, currentUserId, groupId]);
 
   if (serverError) {
-    return <ServerUnavailable />;
+    return <ServerUnavailable error={serverError} />;
   }
 
   if (!summary) {

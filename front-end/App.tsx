@@ -1,28 +1,27 @@
 import { Poppins_400Regular, Poppins_500Medium, Poppins_600SemiBold } from '@expo-google-fonts/poppins';
 import { Sora_600SemiBold, Sora_700Bold } from '@expo-google-fonts/sora';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Image, SafeAreaView, StyleSheet, View } from 'react-native';
-import { Asset } from 'expo-asset';
+import { Animated, SafeAreaView, StyleSheet, View } from 'react-native';
 
 import { BottomTabs, type TabKey } from './src/components/BottomTabs';
-import { SKIMP_LOGO_SOURCE } from './src/components/Logo';
-import {
-  API_CURRENT_CHALLENGE_ID,
-  API_CURRENT_GROUP_ID,
-  API_CURRENT_USER_ID,
-  apiSkimpAdapter,
-} from './src/data/apiSkimpAdapter';
+import { apiSkimpAdapter } from './src/data/apiSkimpAdapter';
+import type { DemoSession } from './src/data/types';
 import { colors } from './src/theme';
 import { HomeScreen } from './src/screens/HomeScreen';
+import { JoinDemoScreen } from './src/screens/JoinDemoScreen';
 import { LeaderboardScreen } from './src/screens/LeaderboardScreen';
 import { MemoriesScreen } from './src/screens/MemoriesScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
 
+const DEMO_SESSION_KEY = 'skimp-demo-session';
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('home');
-  const [logoLoaded, setLogoLoaded] = useState(false);
+  const [sessionLoaded, setSessionLoaded] = useState(false);
+  const [session, setSession] = useState<DemoSession>();
   const [fontsLoaded] = useFonts({
     Poppins_400Regular,
     Poppins_500Medium,
@@ -37,12 +36,14 @@ export default function App() {
   useEffect(() => {
     (async () => {
       try {
-        const asset = Asset.fromModule(SKIMP_LOGO_SOURCE);
-        await asset.downloadAsync();
+        const stored = await AsyncStorage.getItem(DEMO_SESSION_KEY);
+        if (stored) {
+          setSession(JSON.parse(stored) as DemoSession);
+        }
       } catch {
-        // ignore failures and continue
+        await AsyncStorage.removeItem(DEMO_SESSION_KEY);
       } finally {
-        setLogoLoaded(true);
+        setSessionLoaded(true);
       }
     })();
   }, []);
@@ -66,8 +67,22 @@ export default function App() {
     previousTabRef.current = activeTab;
   }, [activeTab, slide]);
 
-  if (!fontsLoaded || !logoLoaded) {
+  if (!fontsLoaded || !sessionLoaded) {
     return <View style={styles.root} />;
+  }
+
+  const joinDemo = async (nextSession: DemoSession) => {
+    await AsyncStorage.setItem(DEMO_SESSION_KEY, JSON.stringify(nextSession));
+    setSession(nextSession);
+  };
+
+  if (!session) {
+    return (
+      <View style={styles.root}>
+        <StatusBar style="dark" />
+        <JoinDemoScreen adapter={adapter} onJoin={joinDemo} />
+      </View>
+    );
   }
 
   return (
@@ -77,22 +92,22 @@ export default function App() {
         <Animated.View style={[styles.screen, { transform: [{ translateX: slide }] }]}>
           <View style={[styles.screen, activeTab === 'memories' && styles.hiddenScreen]}>
             <View style={[styles.screen, activeTab !== 'home' && styles.hiddenScreen]}>
-              <HomeScreen adapter={adapter} currentUserId={API_CURRENT_USER_ID} />
+              <HomeScreen adapter={adapter} currentUserId={session.userId} />
             </View>
             <View style={[styles.screen, activeTab !== 'leaderboard' && styles.hiddenScreen]}>
               <LeaderboardScreen
                 adapter={adapter}
-                challengeId={API_CURRENT_CHALLENGE_ID}
-                currentUserId={API_CURRENT_USER_ID}
-                groupId={API_CURRENT_GROUP_ID}
+                challengeId={session.challengeId}
+                currentUserId={session.userId}
+                groupId={session.groupId}
               />
             </View>
             <View style={[styles.screen, activeTab !== 'profile' && styles.hiddenScreen]}>
               <ProfileScreen
                 adapter={adapter}
-                challengeId={API_CURRENT_CHALLENGE_ID}
-                currentUserId={API_CURRENT_USER_ID}
-                groupId={API_CURRENT_GROUP_ID}
+                challengeId={session.challengeId}
+                currentUserId={session.userId}
+                groupId={session.groupId}
                 onOpenMemories={() => setActiveTab('memories')}
               />
             </View>
@@ -100,8 +115,8 @@ export default function App() {
           {activeTab === 'memories' ? (
             <MemoriesScreen
               adapter={adapter}
-              currentUserId={API_CURRENT_USER_ID}
-              groupId={API_CURRENT_GROUP_ID}
+              currentUserId={session.userId}
+              groupId={session.groupId}
               onBack={() => setActiveTab('profile')}
             />
           ) : null}

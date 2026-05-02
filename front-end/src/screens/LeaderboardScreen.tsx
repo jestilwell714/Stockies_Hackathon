@@ -23,19 +23,19 @@ const medalImages = {
 
 export function LeaderboardScreen({ adapter, groupId, currentUserId }: LeaderboardScreenProps) {
   const [leaderboard, setLeaderboard] = useState<PointsLeaderboardRow[]>();
-  const [serverError, setServerError] = useState(false);
+  const [serverError, setServerError] = useState<unknown>();
 
   useEffect(() => {
     adapter.getPointsLeaderboard(groupId)
       .then((rows) => {
         setLeaderboard(rows);
-        setServerError(false);
+        setServerError(undefined);
       })
-      .catch(() => setServerError(true));
+      .catch((error) => setServerError(error));
   }, [adapter, groupId]);
 
   if (serverError) {
-    return <ServerUnavailable />;
+    return <ServerUnavailable error={serverError} />;
   }
 
   if (!leaderboard) {

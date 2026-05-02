@@ -15,6 +15,10 @@ const ensureSupabase = () => {
 };
 
 export const supabaseSkimpAdapter: SkimpDataAdapter = {
+  async joinDemo() {
+    ensureSupabase();
+    throw configurationError();
+  },
   async getHomeDashboard() {
     ensureSupabase();
     throw configurationError();

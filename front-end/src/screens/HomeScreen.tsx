@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Animated, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { ActivityFeedItem } from '../components/ActivityFeedItem';
 import { AppHeader } from '../components/AppHeader';
@@ -17,8 +17,7 @@ type HomeScreenProps = {
 
 export function HomeScreen({ adapter, currentUserId }: HomeScreenProps) {
   const [dashboard, setDashboard] = useState<HomeDashboard>();
-  const [serverError, setServerError] = useState(false);
-  const [simulating, setSimulating] = useState(false);
+  const [serverError, setServerError] = useState<unknown>();
   const [carouselScrollEnabled, setCarouselScrollEnabled] = useState(true);
   const carouselScrollX = useRef(new Animated.Value(0)).current;
   const { width } = useWindowDimensions();
@@ -30,48 +29,26 @@ export function HomeScreen({ adapter, currentUserId }: HomeScreenProps) {
         .then((nextDashboard) => {
           if (!cancelled) {
             setDashboard(nextDashboard);
-            setServerError(false);
+            setServerError(undefined);
           }
         })
-        .catch(() => {
+        .catch((error) => {
           if (!cancelled) {
-            setServerError(true);
+            setServerError(error);
           }
         });
     };
 
     load();
-    const poll = setInterval(load, 5000);
+    const poll = setInterval(load, 2000);
     return () => {
       cancelled = true;
       clearInterval(poll);
     };
   }, [adapter, currentUserId]);
 
-  const simulateTransaction = async () => {
-    const samples = [
-      { amount: 12.8, description: 'Uber Eats Ponsonby dinner' },
-      { amount: 7.4, description: 'McDonalds Queen Street' },
-      { amount: 19.99, description: 'Netflix Subscription' },
-      { amount: 42.5, description: 'Nike Online Store' },
-    ];
-    const sample = samples[Math.floor(Math.random() * samples.length)];
-
-    setSimulating(true);
-    try {
-      await adapter.simulateTransaction({ userId: currentUserId, ...sample });
-      const nextDashboard = await adapter.getHomeDashboard(currentUserId);
-      setDashboard(nextDashboard);
-      setServerError(false);
-    } catch {
-      setServerError(true);
-    } finally {
-      setSimulating(false);
-    }
-  };
-
   if (serverError) {
-    return <ServerUnavailable />;
+    return <ServerUnavailable error={serverError} />;
   }
 
   if (!dashboard) {
@@ -84,10 +61,6 @@ export function HomeScreen({ adapter, currentUserId }: HomeScreenProps) {
   return (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} style={styles.scroll}>
       <AppHeader />
-
-      <Pressable accessibilityRole="button" disabled={simulating} onPress={simulateTransaction} style={({ pressed }) => [styles.simulateButton, pressed && styles.pressed, simulating && styles.disabled]}>
-        <Text style={styles.simulateText}>{simulating ? 'Simulating...' : 'Simulate Transaction'}</Text>
-      </Pressable>
 
       <Animated.ScrollView
         decelerationRate="fast"
@@ -236,24 +209,5 @@ const styles = StyleSheet.create({
     color: colors.textSoft,
     fontFamily: fonts.bodySemi,
     fontSize: 14,
-  },
-  simulateButton: {
-    alignItems: 'center',
-    backgroundColor: colors.green,
-    borderRadius: 16,
-    minHeight: 52,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
-  },
-  simulateText: {
-    color: colors.surface,
-    fontFamily: fonts.bodySemi,
-    fontSize: 16,
-  },
-  pressed: {
-    opacity: 0.75,
-  },
-  disabled: {
-    opacity: 0.55,
   },
 });

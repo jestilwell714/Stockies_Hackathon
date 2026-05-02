@@ -228,6 +228,18 @@ const buildRecapFromCurrentShape = (shell: (typeof recapShells)[number]): Weekly
 };
 
 export const mockSkimpAdapter: SkimpDataAdapter = {
+  async joinDemo(displayName) {
+    return {
+      userId: MOCK_CURRENT_USER_ID,
+      username: displayName.trim() || 'connor',
+      displayName: displayName.trim() || 'connor',
+      groupId: MOCK_CURRENT_GROUP_ID,
+      groupName: 'Skimp Squad',
+      inviteCode: 'SKIMP8',
+      challengeId: MOCK_CURRENT_CHALLENGE_ID,
+    };
+  },
+
   async getHomeDashboard(userId) {
     const profile = findProfile(userId);
     const group = friendGroups[0];

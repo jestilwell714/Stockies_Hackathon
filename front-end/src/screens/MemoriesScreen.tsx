@@ -28,7 +28,7 @@ type MemoriesScreenProps = {
 
 export function MemoriesScreen({ adapter, groupId, onBack }: MemoriesScreenProps) {
   const [recaps, setRecaps] = useState<WeeklyRecap[]>();
-  const [serverError, setServerError] = useState(false);
+  const [serverError, setServerError] = useState<unknown>();
   const [activeMonth, setActiveMonth] = useState(months.length - 1);
   const { width } = useWindowDimensions();
   const monthScrollX = useRef(new Animated.Value((months.length - 1) * monthSnap)).current;
@@ -39,9 +39,9 @@ export function MemoriesScreen({ adapter, groupId, onBack }: MemoriesScreenProps
     adapter.getWeeklyRecaps(groupId)
       .then((nextRecaps) => {
         setRecaps(nextRecaps);
-        setServerError(false);
+        setServerError(undefined);
       })
-      .catch(() => setServerError(true));
+      .catch((error) => setServerError(error));
   }, [adapter, groupId]);
 
   useEffect(() => {
@@ -62,7 +62,7 @@ export function MemoriesScreen({ adapter, groupId, onBack }: MemoriesScreenProps
   }, [activeMonth, contentAnim]);
 
   if (serverError) {
-    return <ServerUnavailable />;
+    return <ServerUnavailable error={serverError} />;
   }
 
   if (!recaps) {
