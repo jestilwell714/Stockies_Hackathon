@@ -1,10 +1,12 @@
 package com.stockies.social_finance_api.service;
 
+import com.stockies.social_finance_api.Repository.FriendGroupRepository;
 import com.stockies.social_finance_api.Repository.TransactionRepository;
 import com.stockies.social_finance_api.Repository.UserRepository;
 import com.stockies.social_finance_api.Repository.WeeklyChallengeRepository;
 import com.stockies.social_finance_api.dto.UserDto;
 import com.stockies.social_finance_api.dto.WeeklyChallengeDto;
+import com.stockies.social_finance_api.entity.FriendGroup;
 import com.stockies.social_finance_api.entity.Transaction;
 import com.stockies.social_finance_api.entity.User;
 import com.stockies.social_finance_api.entity.WeeklyChallenge;
@@ -20,15 +22,18 @@ public class FriendGroupServiceImpl implements FriendGroupService {
 
     private final UserRepository userRepository;
     private final WeeklyChallengeRepository challengeRepository;
+    private final FriendGroupRepository groupRepository;
     private final TransactionRepository transactionRepository;
     private final WeeklyChallengeService weeklyChallengeService;
 
     public FriendGroupServiceImpl(UserRepository userRepository, WeeklyChallengeRepository challengeRepository,
-                                  TransactionRepository transactionRepository, WeeklyChallengeService weeklyChallengeService) {
+                                  TransactionRepository transactionRepository, WeeklyChallengeService weeklyChallengeService,
+                                  FriendGroupRepository groupRepository) {
         this.userRepository = userRepository;
         this.challengeRepository = challengeRepository;
         this.transactionRepository = transactionRepository;
         this.weeklyChallengeService = weeklyChallengeService;
+        this.groupRepository = groupRepository;
     }
 
     @Override
@@ -75,5 +80,18 @@ public class FriendGroupServiceImpl implements FriendGroupService {
                 .withHour(23).withMinute(59).withSecond(59).withNano(0);
         WeeklyChallengeDto dto = WeeklyChallengeDto.builder().startDate(startTime).endDate(endTime).build();
         weeklyChallengeService.createChallenge(dto);
+    }
+
+    @Override
+    public void joinGroup(Long userId, String inviteCode) {
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        FriendGroup group = groupRepository.findByInviteCode(inviteCode.toUpperCase().trim())
+                .orElseThrow(() -> new RuntimeException("Group not found with that code!"));
+
+        user.setFriendGroup(group);
+        userRepository.save(user);
     }
 }

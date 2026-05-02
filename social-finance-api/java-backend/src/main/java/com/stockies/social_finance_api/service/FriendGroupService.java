@@ -4,4 +4,5 @@ import java.time.LocalDateTime;
 
 public interface FriendGroupService {
     public void endWeeklyChallenge(Long groupId, LocalDateTime referenceTime);
+    public void joinGroup(Long userId, String inviteCode);
 }
