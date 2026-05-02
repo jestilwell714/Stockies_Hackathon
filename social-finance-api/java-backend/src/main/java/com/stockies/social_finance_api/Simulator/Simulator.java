@@ -15,39 +15,58 @@ import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Random;
+import java.util.UUID;
 
 public class Simulator {
 
-    private static final String API_URL = "http://localhost:8080/api/";
+    private static final String API_URL = "http://172.20.10.10:8080/api/";
     private static final HttpClient client = HttpClient.newHttpClient();
     private static Gson gson = new Gson();
 
     public static void main(String[] args) throws Exception {
-        List<Long> userIds = fetchUserIds();
+        List<UUID> userIds = fetchUserIds();
+
+        if (userIds.isEmpty()) {
+            System.err.println("No users found! Is the database seeded?");
+            return;
+        }
+
+        System.out.println("Fetched " + userIds.size() + " participants. Starting simulation...");
+
         List<TransactionDto> transactionDtos = readCsv("src/main/java/com/stockies/social_finance_api/Simulator/simulation_data.txt");
         transactionLoop(userIds, transactionDtos);
     }
 
     private static List<TransactionDto> readCsv(String filePath) throws IOException {
         return Files.lines(Paths.get(filePath))
-                .skip(1)
+                .skip(1) // Skip the header row
                 .map(line -> line.split(","))
-                .filter(parts -> parts.length >= 4)
-                .map(parts -> new TransactionDto(
-                        null,
-                        parts[1].trim(),
-                        Double.parseDouble(parts[2].trim()),
-                        parts[0].trim()
-                ))
+                .filter(parts -> parts.length >= 3) // Ensure we have enough columns
+                .filter(parts -> !parts[2].trim().equalsIgnoreCase("amount")) // EXTRA SAFETY: Skip if it's the header
+                .map(parts -> {
+                    try {
+                        return new TransactionDto(
+                                null,
+                                parts[1].trim(),
+                                Double.parseDouble(parts[2].trim()),
+                                parts[0].trim()
+                        );
+                    } catch (NumberFormatException e) {
+                        System.err.println("Skipping malformed line: " + String.join(",", parts));
+                        return null;
+                    }
+                })
+                .filter(java.util.Objects::nonNull) // Remove any nulls from failed parses
                 .toList();
     }
 
-    private static void transactionLoop(List<Long> userIds, List<TransactionDto> transactions) throws IOException, InterruptedException {
+    private static void transactionLoop(List<UUID> userIds, List<TransactionDto> transactions) throws IOException, InterruptedException {
         Random r = new Random();
         int n = userIds.size();
         for(int i = 0; i < transactions.size(); ++i) {
             int index = r.nextInt(userIds.size());
-            Long id = userIds.get(index);
+
+            UUID id = userIds.get(index);
             TransactionDto template = transactions.get(i);
             TransactionDto transaction = new TransactionDto(
                     id,
@@ -75,20 +94,28 @@ public class Simulator {
         client.send(request, HttpResponse.BodyHandlers.ofString());
     }
 
-    private static List<Long> fetchUserIds() throws Exception {
+    private static List<UUID> fetchUserIds() throws Exception {
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(API_URL + "users/ids"))
+                .uri(URI.create(API_URL + "demo/participants"))
                 .GET()
                 .build();
 
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
         if (response.statusCode() != 200) {
-            throw new RuntimeException("Failed: " + response.statusCode());
+            throw new RuntimeException("Failed to fetch participants: " + response.statusCode());
         }
 
-        Type listType = new TypeToken<List<Long>>(){}.getType();
-        return gson.fromJson(response.body(), listType);
+        // Parse the JSON array into our List of User objects
+        Type listType = new TypeToken<List<User>>(){}.getType();
+        List<User> users = gson.fromJson(response.body(), listType);
+
+        // Extract the UUIDs from the objects
+        return users.stream()
+                .map(user -> user.id)
+                .toList();
     }
 
 }
+
+
