@@ -4,25 +4,31 @@ import com.stockies.social_finance_api.Repository.TransactionRepository;
 import com.stockies.social_finance_api.Repository.UserRepository;
 import com.stockies.social_finance_api.Repository.WeeklyChallengeRepository;
 import com.stockies.social_finance_api.dto.UserDto;
+import com.stockies.social_finance_api.dto.WeeklyChallengeDto;
 import com.stockies.social_finance_api.entity.Transaction;
 import com.stockies.social_finance_api.entity.User;
 import com.stockies.social_finance_api.entity.WeeklyChallenge;
+import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+@Service
 public class FriendGroupServiceImpl implements FriendGroupService {
 
     private final UserRepository userRepository;
     private final WeeklyChallengeRepository challengeRepository;
     private final TransactionRepository transactionRepository;
+    private final WeeklyChallengeService weeklyChallengeService;
 
-    public FriendGroupServiceImpl(UserRepository userRepository, WeeklyChallengeRepository challengeRepository, TransactionRepository transactionRepository) {
+    public FriendGroupServiceImpl(UserRepository userRepository, WeeklyChallengeRepository challengeRepository,
+                                  TransactionRepository transactionRepository, WeeklyChallengeService weeklyChallengeService) {
         this.userRepository = userRepository;
         this.challengeRepository = challengeRepository;
         this.transactionRepository = transactionRepository;
+        this.weeklyChallengeService = weeklyChallengeService;
     }
 
     @Override
@@ -63,6 +69,11 @@ public class FriendGroupServiceImpl implements FriendGroupService {
             userRepository.save(user);
         }
 
-        challengeService.createChallenge();
+        LocalDateTime startTime = referenceTime.minusDays(0)
+                .withHour(0).withMinute(0).withSecond(0).withNano(0);
+        LocalDateTime endTime = referenceTime.plusDays(6)
+                .withHour(23).withMinute(59).withSecond(59).withNano(0);
+        WeeklyChallengeDto dto = WeeklyChallengeDto.builder().startDate(startTime).endDate(endTime).build();
+        weeklyChallengeService.createChallenge(dto);
     }
 }
