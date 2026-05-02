@@ -6,5 +6,6 @@ public record TransactionDto(
         UUID userId,
         String description,
         double amount,
-        String timestamp
+        String timestamp,
+        String category
 ) {}
