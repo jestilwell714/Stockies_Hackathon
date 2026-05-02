@@ -181,6 +181,12 @@ export type SkimpDataAdapter = {
   getPointsLeaderboard(groupId: string): Promise<PointsLeaderboardRow[]>;
   getWeeklyCumulativeSpend(groupId: string, challengeId: string): Promise<WeeklyGraph>;
   getActivityFeed(groupId: string, limit?: number): Promise<ActivityFeedItem[]>;
+  simulateTransaction(input: {
+    userId: string;
+    amount: number;
+    description: string;
+    timestamp?: string;
+  }): Promise<Transaction>;
   getProfileSummary(
     userId: string,
     groupId: string,

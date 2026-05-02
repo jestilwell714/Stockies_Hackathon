@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/groups")
@@ -18,7 +19,7 @@ public class FriendGroupController {
     }
 
     @PostMapping("/join")
-    public ResponseEntity<?> joinGroup(@RequestHeader("X-Invite-Code") String inviteCode, @RequestParam Long userId) {
+    public ResponseEntity<?> joinGroup(@RequestHeader("X-Invite-Code") String inviteCode, @RequestParam UUID userId) {
         try {
             groupService.joinGroup(userId, inviteCode);
             return ResponseEntity.ok(Map.of("message", "Joined successfully!"));
@@ -29,7 +30,7 @@ public class FriendGroupController {
 
     @PostMapping("/create")
     public ResponseEntity<?> createGroup(
-            @RequestHeader("X-User-Id") Long userId) {
+            @RequestHeader("X-User-Id") UUID userId) {
         try {
             FriendGroupDto newGroup = groupService.createGroup(userId);
             return ResponseEntity.ok(newGroup);

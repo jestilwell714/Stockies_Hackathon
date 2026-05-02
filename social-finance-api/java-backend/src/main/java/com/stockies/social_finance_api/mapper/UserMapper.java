@@ -15,7 +15,10 @@ public class UserMapper implements Mapper<UserDto, User> {
                 .id(user.getId())
                 .username(user.getUsername())
                 .totalPoints(user.getTotalPoints())
-                .groupId(user.getFriendGroup().getId())
+                .groupId(user.getFriendGroup() == null ? null : user.getFriendGroup().getId())
+                .goldMedals(user.getGoldMedel())
+                .silverMedals(user.getSilverMedel())
+                .bronzeMedals(user.getBronzeMedel())
                 .build();
     }
 

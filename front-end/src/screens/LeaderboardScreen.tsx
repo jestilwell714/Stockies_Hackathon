@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { AppHeader } from '../components/AppHeader';
 import { Avatar } from '../components/Avatar';
 import { Card } from '../components/Card';
+import { ServerUnavailable } from '../components/ServerUnavailable';
 import type { PointsLeaderboardRow, SkimpDataAdapter } from '../data/types';
 import { colors, fonts, spacing } from '../theme';
 
@@ -22,10 +23,20 @@ const medalImages = {
 
 export function LeaderboardScreen({ adapter, groupId, currentUserId }: LeaderboardScreenProps) {
   const [leaderboard, setLeaderboard] = useState<PointsLeaderboardRow[]>();
+  const [serverError, setServerError] = useState(false);
 
   useEffect(() => {
-    adapter.getPointsLeaderboard(groupId).then(setLeaderboard);
+    adapter.getPointsLeaderboard(groupId)
+      .then((rows) => {
+        setLeaderboard(rows);
+        setServerError(false);
+      })
+      .catch(() => setServerError(true));
   }, [adapter, groupId]);
+
+  if (serverError) {
+    return <ServerUnavailable />;
+  }
 
   if (!leaderboard) {
     return <Loading />;

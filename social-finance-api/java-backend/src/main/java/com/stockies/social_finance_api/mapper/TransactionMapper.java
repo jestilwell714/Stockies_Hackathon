@@ -12,10 +12,13 @@ public class TransactionMapper implements Mapper<TransactionDto, Transaction> {
 
         return TransactionDto.builder()
                 .id(entity.getId())
+                .amount(entity.getAmount())
                 .timestamp(entity.getTimestamp())
                 .category(entity.getCategory())
                 .description(entity.getDescription())
                 .userId(entity.getUser().getId())
+                .groupId(entity.getFriendGroup() == null ? null : entity.getFriendGroup().getId())
+                .challengeId(entity.getWeeklyChallenge() == null ? null : entity.getWeeklyChallenge().getId())
                 .build();
     }
 

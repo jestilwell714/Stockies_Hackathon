@@ -35,6 +35,10 @@ export const supabaseSkimpAdapter: SkimpDataAdapter = {
     ensureSupabase();
     throw configurationError();
   },
+  async simulateTransaction() {
+    ensureSupabase();
+    throw configurationError();
+  },
   async getProfileSummary() {
     ensureSupabase();
     throw configurationError();

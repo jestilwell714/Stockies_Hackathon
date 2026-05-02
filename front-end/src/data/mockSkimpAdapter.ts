@@ -263,6 +263,28 @@ export const mockSkimpAdapter: SkimpDataAdapter = {
     return buildActivityFeed(groupId, limit);
   },
 
+  async simulateTransaction(input) {
+    const transaction: Transaction = {
+      id: `txn-sim-${Date.now()}`,
+      userId: input.userId,
+      groupId: MOCK_CURRENT_GROUP_ID,
+      challengeId: MOCK_CURRENT_CHALLENGE_ID,
+      amount: input.amount,
+      currency: 'NZD',
+      description: input.description,
+      merchant: input.description.split(' ')[0] || 'Transaction',
+      timestamp: input.timestamp ?? new Date().toISOString(),
+      category: 'other',
+      categoryMethod: 'manual',
+      categorizedAt: new Date().toISOString(),
+      isBadSpend: false,
+      needsReview: false,
+      sourceTransactionId: `mock-${Date.now()}`,
+    };
+    transactions.unshift(transaction);
+    return transaction;
+  },
+
   async getProfileSummary(userId, groupId, challengeId) {
     const leaderboard = buildLeaderboard(groupId, challengeId);
     const currentRow = leaderboard.find((row) => row.userId === userId);

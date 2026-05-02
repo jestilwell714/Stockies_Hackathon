@@ -5,13 +5,15 @@ import lombok.Data;
 
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 @Data
 @Builder
 public class FriendGroupDto {
-        private Long id;
+        private UUID id;
         private String groupName;
         private String inviteCode;
+        private UUID creatorUserId;
         private Set<String> bannedCategories;
-        private List<Long> members;
+        private List<UUID> members;
 }

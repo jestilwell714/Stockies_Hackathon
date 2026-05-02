@@ -4,15 +4,16 @@ import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Image, SafeAreaView, StyleSheet, View } from 'react-native';
+import { Asset } from 'expo-asset';
 
 import { BottomTabs, type TabKey } from './src/components/BottomTabs';
 import { SKIMP_LOGO_SOURCE } from './src/components/Logo';
 import {
-  MOCK_CURRENT_CHALLENGE_ID,
-  MOCK_CURRENT_GROUP_ID,
-  MOCK_CURRENT_USER_ID,
-  mockSkimpAdapter,
-} from './src/data/mockSkimpAdapter';
+  API_CURRENT_CHALLENGE_ID,
+  API_CURRENT_GROUP_ID,
+  API_CURRENT_USER_ID,
+  apiSkimpAdapter,
+} from './src/data/apiSkimpAdapter';
 import { colors } from './src/theme';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { LeaderboardScreen } from './src/screens/LeaderboardScreen';
@@ -29,15 +30,21 @@ export default function App() {
     Sora_600SemiBold,
     Sora_700Bold,
   });
-  const adapter = useMemo(() => mockSkimpAdapter, []);
+  const adapter = useMemo(() => apiSkimpAdapter, []);
   const slide = useRef(new Animated.Value(0)).current;
   const previousTabRef = useRef<TabKey>('home');
 
   useEffect(() => {
-    const logoUri = Image.resolveAssetSource(SKIMP_LOGO_SOURCE).uri;
-    Image.prefetch(logoUri)
-      .catch(() => undefined)
-      .finally(() => setLogoLoaded(true));
+    (async () => {
+      try {
+        const asset = Asset.fromModule(SKIMP_LOGO_SOURCE);
+        await asset.downloadAsync();
+      } catch {
+        // ignore failures and continue
+      } finally {
+        setLogoLoaded(true);
+      }
+    })();
   }, []);
 
   useEffect(() => {
@@ -70,22 +77,22 @@ export default function App() {
         <Animated.View style={[styles.screen, { transform: [{ translateX: slide }] }]}>
           <View style={[styles.screen, activeTab === 'memories' && styles.hiddenScreen]}>
             <View style={[styles.screen, activeTab !== 'home' && styles.hiddenScreen]}>
-              <HomeScreen adapter={adapter} currentUserId={MOCK_CURRENT_USER_ID} />
+              <HomeScreen adapter={adapter} currentUserId={API_CURRENT_USER_ID} />
             </View>
             <View style={[styles.screen, activeTab !== 'leaderboard' && styles.hiddenScreen]}>
               <LeaderboardScreen
                 adapter={adapter}
-                challengeId={MOCK_CURRENT_CHALLENGE_ID}
-                currentUserId={MOCK_CURRENT_USER_ID}
-                groupId={MOCK_CURRENT_GROUP_ID}
+                challengeId={API_CURRENT_CHALLENGE_ID}
+                currentUserId={API_CURRENT_USER_ID}
+                groupId={API_CURRENT_GROUP_ID}
               />
             </View>
             <View style={[styles.screen, activeTab !== 'profile' && styles.hiddenScreen]}>
               <ProfileScreen
                 adapter={adapter}
-                challengeId={MOCK_CURRENT_CHALLENGE_ID}
-                currentUserId={MOCK_CURRENT_USER_ID}
-                groupId={MOCK_CURRENT_GROUP_ID}
+                challengeId={API_CURRENT_CHALLENGE_ID}
+                currentUserId={API_CURRENT_USER_ID}
+                groupId={API_CURRENT_GROUP_ID}
                 onOpenMemories={() => setActiveTab('memories')}
               />
             </View>
@@ -93,8 +100,8 @@ export default function App() {
           {activeTab === 'memories' ? (
             <MemoriesScreen
               adapter={adapter}
-              currentUserId={MOCK_CURRENT_USER_ID}
-              groupId={MOCK_CURRENT_GROUP_ID}
+              currentUserId={API_CURRENT_USER_ID}
+              groupId={API_CURRENT_GROUP_ID}
               onBack={() => setActiveTab('profile')}
             />
           ) : null}

@@ -12,7 +12,6 @@ import com.stockies.social_finance_api.entity.Transaction;
 import com.stockies.social_finance_api.entity.User;
 import com.stockies.social_finance_api.entity.WeeklyChallenge;
 import com.stockies.social_finance_api.mapper.FriendGroupMapper;
-import org.springframework.cglib.core.Local;
 import org.springframework.stereotype.Service;
 
 import java.security.SecureRandom;
@@ -21,6 +20,7 @@ import java.time.LocalDateTime;
 import java.time.temporal.TemporalAdjusters;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -46,7 +46,7 @@ public class FriendGroupServiceImpl implements FriendGroupService {
     }
 
     @Override
-    public void endWeeklyChallenge(Long groupId, LocalDateTime referenceTime) {
+    public void endWeeklyChallenge(UUID groupId, LocalDateTime referenceTime) {
         List<User> users = userRepository.findByFriendGroupId(groupId);
         LocalDateTime challengeEnd = referenceTime.minusDays(1)
                 .withHour(23).withMinute(59).withSecond(59).withNano(0);
@@ -55,20 +55,20 @@ public class FriendGroupServiceImpl implements FriendGroupService {
         WeeklyChallenge challenge = challengeRepository.findByStartDateBeforeAndEndDateAfter(challengeStart, challengeEnd).get();
         List<Transaction> transactions = transactionRepository.findAllByUserFriendGroupIdAndTimestampBetween(groupId, challengeStart, challengeEnd);
 
-        Map<Long, Double> userSpending = transactions.stream()
+        Map<UUID, Double> userSpending = transactions.stream()
                 .collect(Collectors.groupingBy(
                         t -> t.getUser().getId(),
                         Collectors.summingDouble(Transaction::getAmount)
                 ));
 
-        List<Long> rankedUsers = userSpending.entrySet().stream()
+        List<UUID> rankedUsers = userSpending.entrySet().stream()
                 .sorted(Map.Entry.comparingByValue())
                 .map(u -> u.getKey())
                 .collect(Collectors.toList());
 
         int[] pointDistribution = {100, 50, 25, 12, 6, 3, 1, 0};
         for (int i = 0; i < rankedUsers.size(); i++) {
-            Long userId = rankedUsers.get(i);
+            UUID userId = rankedUsers.get(i);
             User user = userRepository.findById(userId)
                     .orElseThrow(() -> new RuntimeException("User lost during processing"));
 
@@ -87,12 +87,12 @@ public class FriendGroupServiceImpl implements FriendGroupService {
                 .withHour(0).withMinute(0).withSecond(0).withNano(0);
         LocalDateTime endTime = referenceTime.plusDays(6)
                 .withHour(23).withMinute(59).withSecond(59).withNano(0);
-        WeeklyChallengeDto dto = WeeklyChallengeDto.builder().startDate(startTime).endDate(endTime).build();
+        WeeklyChallengeDto dto = WeeklyChallengeDto.builder().groupId(groupId).startDate(startTime).endDate(endTime).build();
         weeklyChallengeService.createChallenge(dto);
     }
 
     @Override
-    public void joinGroup(Long userId, String inviteCode) {
+    public void joinGroup(UUID userId, String inviteCode) {
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -109,19 +109,22 @@ public class FriendGroupServiceImpl implements FriendGroupService {
                 .withSecond(0)
                 .withNano(0);
         LocalDateTime endTime = startTime.plusDays(6).plusHours(23).plusMinutes(59).plusSeconds(59);
-        WeeklyChallengeDto newChallenge = WeeklyChallengeDto.builder().startDate(startTime).endDate(endTime).build();
+        WeeklyChallengeDto newChallenge = WeeklyChallengeDto.builder().groupId(group.getId()).startDate(startTime).endDate(endTime).build();
         weeklyChallengeService.createChallenge(newChallenge);
         userRepository.save(user);
     }
 
     @Override
-    public FriendGroupDto createGroup(Long userId) {
-        FriendGroup friendGroup = new FriendGroup();
-        friendGroup.setInviteCode(generateInviteCode());
+    public FriendGroupDto createGroup(UUID userId) {
+        User user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
+        FriendGroup friendGroup = FriendGroup.builder()
+                .groupName(user.getUsername() + "'s Group")
+                .inviteCode(generateInviteCode())
+                .creator(user)
+                .build();
         FriendGroup newFriendGroup = groupRepository.save(friendGroup);
-        User user = userRepository.findById(userId).get();
         user.setFriendGroup(newFriendGroup);
-
+        userRepository.save(user);
 
         return friendGroupMapper.toDto(newFriendGroup);
     }
@@ -137,12 +140,12 @@ public class FriendGroupServiceImpl implements FriendGroupService {
     }
 
     @Override
-    public FriendGroupDto assignToGroup(Long userId) {
-        FriendGroup friendGroup = groupRepository.findTopByOrdersByIdDesc()
-                .filter(g -> g.getMembers().size() < 8).orElse(null);
+    public FriendGroupDto assignToGroup(UUID userId) {
+        FriendGroup friendGroup = groupRepository.findTopByOrderByIdDesc()
+                .filter(g -> g.getMembers() == null || g.getMembers().size() < 8).orElse(null);
 
 
-        if (friendGroup != null && friendGroup.getMembers().size() < 8) {
+        if (friendGroup != null && (friendGroup.getMembers() == null || friendGroup.getMembers().size() < 8)) {
             User user = userRepository.findById(userId)
                     .orElseThrow(() -> new RuntimeException("User not found"));
 

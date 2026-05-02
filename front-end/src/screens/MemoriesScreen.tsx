@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { Logo } from '../components/Logo';
+import { ServerUnavailable } from '../components/ServerUnavailable';
 import type { SkimpDataAdapter, WeeklyRecap } from '../data/types';
 import { colors, fonts, shadow, spacing } from '../theme';
 
@@ -27,6 +28,7 @@ type MemoriesScreenProps = {
 
 export function MemoriesScreen({ adapter, groupId, onBack }: MemoriesScreenProps) {
   const [recaps, setRecaps] = useState<WeeklyRecap[]>();
+  const [serverError, setServerError] = useState(false);
   const [activeMonth, setActiveMonth] = useState(months.length - 1);
   const { width } = useWindowDimensions();
   const monthScrollX = useRef(new Animated.Value((months.length - 1) * monthSnap)).current;
@@ -34,7 +36,12 @@ export function MemoriesScreen({ adapter, groupId, onBack }: MemoriesScreenProps
   const contentAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    adapter.getWeeklyRecaps(groupId).then(setRecaps);
+    adapter.getWeeklyRecaps(groupId)
+      .then((nextRecaps) => {
+        setRecaps(nextRecaps);
+        setServerError(false);
+      })
+      .catch(() => setServerError(true));
   }, [adapter, groupId]);
 
   useEffect(() => {
@@ -53,6 +60,10 @@ export function MemoriesScreen({ adapter, groupId, onBack }: MemoriesScreenProps
       useNativeDriver: true,
     }).start();
   }, [activeMonth, contentAnim]);
+
+  if (serverError) {
+    return <ServerUnavailable />;
+  }
 
   if (!recaps) {
     return <Loading />;
