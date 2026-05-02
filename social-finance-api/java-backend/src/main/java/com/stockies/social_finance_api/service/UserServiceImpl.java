@@ -6,6 +6,8 @@ import com.stockies.social_finance_api.entity.User;
 import com.stockies.social_finance_api.mapper.UserMapper;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 public class UserServiceImpl implements UserService {
     private UserMapper mapper;
@@ -19,5 +21,9 @@ public class UserServiceImpl implements UserService {
     public UserDto createUser(UserDto dto) {
         User newUser = mapper.toEntity(dto);
         return mapper.toDto(userRepository.save(newUser));
+    }
+
+    public List<UserDto> getAllUsers() {
+        return userRepository.findAll().stream().map(u -> mapper.toDto(u)).toList();
     }
 }
