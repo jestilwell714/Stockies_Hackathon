@@ -1,7 +1,7 @@
 package com.stockies.social_finance_api.entity;
 
 import jakarta.persistence.*;
-import jakarta.transaction.Transaction;
+import com.stockies.social_finance_api.entity.Transaction;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
