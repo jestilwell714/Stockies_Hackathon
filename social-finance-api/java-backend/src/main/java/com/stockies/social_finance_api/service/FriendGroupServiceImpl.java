@@ -4,14 +4,17 @@ import com.stockies.social_finance_api.Repository.FriendGroupRepository;
 import com.stockies.social_finance_api.Repository.TransactionRepository;
 import com.stockies.social_finance_api.Repository.UserRepository;
 import com.stockies.social_finance_api.Repository.WeeklyChallengeRepository;
+import com.stockies.social_finance_api.dto.FriendGroupDto;
 import com.stockies.social_finance_api.dto.UserDto;
 import com.stockies.social_finance_api.dto.WeeklyChallengeDto;
 import com.stockies.social_finance_api.entity.FriendGroup;
 import com.stockies.social_finance_api.entity.Transaction;
 import com.stockies.social_finance_api.entity.User;
 import com.stockies.social_finance_api.entity.WeeklyChallenge;
+import com.stockies.social_finance_api.mapper.FriendGroupMapper;
 import org.springframework.stereotype.Service;
 
+import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -25,15 +28,18 @@ public class FriendGroupServiceImpl implements FriendGroupService {
     private final FriendGroupRepository groupRepository;
     private final TransactionRepository transactionRepository;
     private final WeeklyChallengeService weeklyChallengeService;
+    private final FriendGroupMapper friendGroupMapper;
 
     public FriendGroupServiceImpl(UserRepository userRepository, WeeklyChallengeRepository challengeRepository,
                                   TransactionRepository transactionRepository, WeeklyChallengeService weeklyChallengeService,
-                                  FriendGroupRepository groupRepository) {
+                                  FriendGroupRepository groupRepository,
+                                  FriendGroupMapper friendGroupMapper) {
         this.userRepository = userRepository;
         this.challengeRepository = challengeRepository;
         this.transactionRepository = transactionRepository;
         this.weeklyChallengeService = weeklyChallengeService;
         this.groupRepository = groupRepository;
+        this.friendGroupMapper = friendGroupMapper;
     }
 
     @Override
@@ -93,5 +99,28 @@ public class FriendGroupServiceImpl implements FriendGroupService {
 
         user.setFriendGroup(group);
         userRepository.save(user);
+    }
+
+    @Override
+    public FriendGroupDto createGroup(Long userId) {
+        FriendGroup friendGroup = new FriendGroup();
+        friendGroup.setInviteCode(generateInviteCode());
+        FriendGroup newFriendGroup = groupRepository.save(friendGroup);
+        User user = userRepository.findById(userId).get();
+        user.setFriendGroup(newFriendGroup);
+
+
+
+        return friendGroupMapper.toDto(newFriendGroup);
+    }
+
+    private String generateInviteCode() {
+        String characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        StringBuilder code = new StringBuilder();
+        SecureRandom random = new SecureRandom();
+        for (int i = 0; i < 6; i++) {
+            code.append(characters.charAt(random.nextInt(characters.length())));
+        }
+        return code.toString();
     }
 }
