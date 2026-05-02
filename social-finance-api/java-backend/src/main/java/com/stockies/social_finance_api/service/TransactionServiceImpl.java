@@ -7,6 +7,7 @@ import com.stockies.social_finance_api.dto.TransactionDto;
 import com.stockies.social_finance_api.entity.Transaction;
 import com.stockies.social_finance_api.entity.User;
 import com.stockies.social_finance_api.mapper.TransactionMapper;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
@@ -18,19 +19,23 @@ public class TransactionServiceImpl implements TransactionService{
     private final TransactionRepository transactionRepository;
     private final TransactionMapper mapper;
     private final CategoriserService categoriserService;
+    private final SimpMessagingTemplate messagingTemplate;
+
 
     public TransactionServiceImpl
             (UserRepository userRepository, TransactionRepository transactionRepository,
-             TransactionMapper mapper, CategoriserService categoriserService) {
+             TransactionMapper mapper, CategoriserService categoriserService,
+             SimpMessagingTemplate msg) {
         this.userRepository = userRepository;
         this.transactionRepository = transactionRepository;
         this.mapper = mapper;
         this.categoriserService = categoriserService;
+        this.messagingTemplate = msg;
     }
 
     @Override
     public TransactionDto createTransaction(TransactionDto dto) {
-        User user = userRepository.findById(dto.getId()).orElseThrow(() -> new RuntimeException("User not found with id: " + dto.getUserId()));
+        User user = userRepository.findById(dto.getUserId()).orElseThrow(() -> new RuntimeException("User not found with id: " + dto.getUserId()));
         Transaction transaction = mapper.toEntity(dto);
         transaction.setUser(user);
         transaction.setTimestamp(dto.getTimestamp());
@@ -44,6 +49,13 @@ public class TransactionServiceImpl implements TransactionService{
         }
 
         transaction.setCategory(finalCategory);
-        return mapper.toDto(transactionRepository.save(transaction));
+        Transaction entity = transactionRepository.save(transaction);
+        TransactionDto result = mapper.toDto(entity);
+
+        if (entity.getUser().getFriendGroup() != null) {
+            String topic = "/front/updates/" + entity.getUser().getFriendGroup().getId();
+            messagingTemplate.convertAndSend(topic, result);
+        }
+        return result;
     }
 }
