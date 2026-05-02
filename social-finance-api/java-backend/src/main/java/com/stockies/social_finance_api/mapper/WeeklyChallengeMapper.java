@@ -11,6 +11,7 @@ public class WeeklyChallengeMapper implements Mapper<WeeklyChallengeDto, WeeklyC
     public WeeklyChallengeDto toDto(WeeklyChallenge entity) {
         return WeeklyChallengeDto.builder()
                 .id(entity.getId())
+                .groupId(entity.getFriendGroup() == null ? null : entity.getFriendGroup().getId())
                 .startDate(entity.getStartDate())
                 .endDate(entity.getEndDate())
                 .build();

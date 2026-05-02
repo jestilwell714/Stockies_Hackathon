@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { AppHeader } from '../components/AppHeader';
 import { Avatar } from '../components/Avatar';
 import { Card } from '../components/Card';
+import { ServerUnavailable } from '../components/ServerUnavailable';
 import type { PointsLeaderboardRow, SkimpDataAdapter } from '../data/types';
 import { colors, fonts, spacing } from '../theme';
 
@@ -12,6 +13,7 @@ type LeaderboardScreenProps = {
   groupId: string;
   challengeId: string;
   currentUserId: string;
+  onResetSession?: () => void;
 };
 
 const medalImages = {
@@ -20,12 +22,22 @@ const medalImages = {
   bronze: require('../../Bronze Medal.png'),
 };
 
-export function LeaderboardScreen({ adapter, groupId, currentUserId }: LeaderboardScreenProps) {
+export function LeaderboardScreen({ adapter, groupId, currentUserId, onResetSession }: LeaderboardScreenProps) {
   const [leaderboard, setLeaderboard] = useState<PointsLeaderboardRow[]>();
+  const [serverError, setServerError] = useState<unknown>();
 
   useEffect(() => {
-    adapter.getPointsLeaderboard(groupId).then(setLeaderboard);
+    adapter.getPointsLeaderboard(groupId)
+      .then((rows) => {
+        setLeaderboard(rows);
+        setServerError(undefined);
+      })
+      .catch((error) => setServerError(error));
   }, [adapter, groupId]);
+
+  if (serverError) {
+    return <ServerUnavailable error={serverError} onResetSession={onResetSession} />;
+  }
 
   if (!leaderboard) {
     return <Loading />;

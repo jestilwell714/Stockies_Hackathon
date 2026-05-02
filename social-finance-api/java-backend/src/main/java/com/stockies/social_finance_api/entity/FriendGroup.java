@@ -1,10 +1,10 @@
 package com.stockies.social_finance_api.entity;
 
-import com.stockies.social_finance_api.entity.*;
 import jakarta.persistence.*;
 import lombok.*;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 @Entity
 @Table(name = "friend_groups")
@@ -15,11 +15,14 @@ import java.util.Set;
 public class FriendGroup {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private UUID id;
 
     @Column(nullable = false, unique = true)
     private String groupName;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "creator_user_id", nullable = false)
+    private User creator;
 
     @ElementCollection
     private Set<String> bannedCategories;
@@ -29,4 +32,11 @@ public class FriendGroup {
 
     @OneToMany(mappedBy = "friendGroup", cascade = {CascadeType.PERSIST, CascadeType.MERGE})
     private List<User> members;
+
+    @PrePersist
+    void ensureId() {
+        if (id == null) {
+            id = UUID.randomUUID();
+        }
+    }
 }

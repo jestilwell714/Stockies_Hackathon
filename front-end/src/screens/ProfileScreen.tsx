@@ -6,6 +6,7 @@ import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View
 import { Avatar } from '../components/Avatar';
 import { Card } from '../components/Card';
 import { ProfileStatCard } from '../components/ProfileStatCard';
+import { ServerUnavailable } from '../components/ServerUnavailable';
 import { TransactionCard } from '../components/TransactionCard';
 import { TransactionsListModal } from '../components/TransactionsListModal';
 import type { ProfileSummary, SkimpDataAdapter, Transaction } from '../data/types';
@@ -18,18 +19,32 @@ type ProfileScreenProps = {
   groupId: string;
   challengeId: string;
   onOpenMemories: () => void;
+  onResetSession?: () => void;
 };
 
-export function ProfileScreen({ adapter, currentUserId, groupId, challengeId, onOpenMemories }: ProfileScreenProps) {
+export function ProfileScreen({ adapter, currentUserId, groupId, challengeId, onOpenMemories, onResetSession }: ProfileScreenProps) {
   const [summary, setSummary] = useState<ProfileSummary>();
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
+  const [serverError, setServerError] = useState<unknown>();
   const [showTransactions, setShowTransactions] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
-    adapter.getProfileSummary(currentUserId, groupId, challengeId).then(setSummary);
-    adapter.getUserTransactions(currentUserId).then(setAllTransactions);
+    Promise.all([
+      adapter.getProfileSummary(currentUserId, groupId, challengeId),
+      adapter.getUserTransactions(currentUserId),
+    ])
+      .then(([nextSummary, nextTransactions]) => {
+        setSummary(nextSummary);
+        setAllTransactions(nextTransactions);
+        setServerError(undefined);
+      })
+      .catch((error) => setServerError(error));
   }, [adapter, challengeId, currentUserId, groupId]);
+
+  if (serverError) {
+    return <ServerUnavailable error={serverError} onResetSession={onResetSession} />;
+  }
 
   if (!summary) {
     return <Loading />;

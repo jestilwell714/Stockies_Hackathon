@@ -3,6 +3,7 @@ package com.stockies.social_finance_api.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
 @Table(name = "transactions")
@@ -12,8 +13,7 @@ import java.time.LocalDateTime;
 @Builder
 public class Transaction {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private UUID id;
 
     @Column(nullable = false)
     private Double amount;
@@ -29,4 +29,19 @@ public class Transaction {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "group_id", nullable = false)
+    private FriendGroup friendGroup;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "challenge_id", nullable = false)
+    private WeeklyChallenge weeklyChallenge;
+
+    @PrePersist
+    void ensureId() {
+        if (id == null) {
+            id = UUID.randomUUID();
+        }
+    }
 }

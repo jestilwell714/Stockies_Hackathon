@@ -228,6 +228,18 @@ const buildRecapFromCurrentShape = (shell: (typeof recapShells)[number]): Weekly
 };
 
 export const mockSkimpAdapter: SkimpDataAdapter = {
+  async joinDemo(displayName) {
+    return {
+      userId: MOCK_CURRENT_USER_ID,
+      username: displayName.trim() || 'connor',
+      displayName: displayName.trim() || 'connor',
+      groupId: MOCK_CURRENT_GROUP_ID,
+      groupName: 'Skimp Squad',
+      inviteCode: 'SKIMP8',
+      challengeId: MOCK_CURRENT_CHALLENGE_ID,
+    };
+  },
+
   async getHomeDashboard(userId) {
     const profile = findProfile(userId);
     const group = friendGroups[0];
@@ -261,6 +273,28 @@ export const mockSkimpAdapter: SkimpDataAdapter = {
 
   async getActivityFeed(groupId, limit = 8) {
     return buildActivityFeed(groupId, limit);
+  },
+
+  async simulateTransaction(input) {
+    const transaction: Transaction = {
+      id: `txn-sim-${Date.now()}`,
+      userId: input.userId,
+      groupId: MOCK_CURRENT_GROUP_ID,
+      challengeId: MOCK_CURRENT_CHALLENGE_ID,
+      amount: input.amount,
+      currency: 'NZD',
+      description: input.description,
+      merchant: input.description.split(' ')[0] || 'Transaction',
+      timestamp: input.timestamp ?? new Date().toISOString(),
+      category: 'other',
+      categoryMethod: 'manual',
+      categorizedAt: new Date().toISOString(),
+      isBadSpend: false,
+      needsReview: false,
+      sourceTransactionId: `mock-${Date.now()}`,
+    };
+    transactions.unshift(transaction);
+    return transaction;
   },
 
   async getProfileSummary(userId, groupId, challengeId) {

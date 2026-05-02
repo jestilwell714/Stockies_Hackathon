@@ -5,10 +5,11 @@ import com.stockies.social_finance_api.entity.FriendGroup;
 import com.stockies.social_finance_api.entity.User;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 public interface FriendGroupService {
-    public void endWeeklyChallenge(Long groupId, LocalDateTime referenceTime);
-    public void joinGroup(Long userId, String inviteCode);
-    public FriendGroupDto createGroup(Long userId);
-    public FriendGroupDto assignToGroup(Long userId);
+    public void endWeeklyChallenge(UUID groupId, LocalDateTime referenceTime);
+    public void joinGroup(UUID userId, String inviteCode);
+    public FriendGroupDto createGroup(UUID userId);
+    public FriendGroupDto assignToGroup(UUID userId);
 }

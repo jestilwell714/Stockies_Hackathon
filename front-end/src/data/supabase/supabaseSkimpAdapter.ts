@@ -15,6 +15,10 @@ const ensureSupabase = () => {
 };
 
 export const supabaseSkimpAdapter: SkimpDataAdapter = {
+  async joinDemo() {
+    ensureSupabase();
+    throw configurationError();
+  },
   async getHomeDashboard() {
     ensureSupabase();
     throw configurationError();
@@ -32,6 +36,10 @@ export const supabaseSkimpAdapter: SkimpDataAdapter = {
     throw configurationError();
   },
   async getActivityFeed() {
+    ensureSupabase();
+    throw configurationError();
+  },
+  async simulateTransaction() {
     ensureSupabase();
     throw configurationError();
   },

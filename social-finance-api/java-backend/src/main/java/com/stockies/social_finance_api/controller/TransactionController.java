@@ -4,12 +4,14 @@ import com.stockies.social_finance_api.dto.TransactionDto;
 import com.stockies.social_finance_api.service.TransactionService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
+@CrossOrigin(originPatterns = "*")
 @RequestMapping("/api/transactions")
 public class TransactionController {
     private final TransactionService transactionService;
@@ -25,6 +27,13 @@ public class TransactionController {
      */
     @PostMapping
     public ResponseEntity<TransactionDto> createTransaction(@RequestBody TransactionDto transactionDto) {
+        TransactionDto processedTransaction = transactionService.createTransaction(transactionDto);
+
+        return new ResponseEntity<>(processedTransaction, HttpStatus.CREATED);
+    }
+
+    @PostMapping("/simulate")
+    public ResponseEntity<TransactionDto> simulateTransaction(@RequestBody TransactionDto transactionDto) {
         TransactionDto processedTransaction = transactionService.createTransaction(transactionDto);
 
         return new ResponseEntity<>(processedTransaction, HttpStatus.CREATED);
