@@ -2,11 +2,13 @@ package com.stockies.social_finance_api.service;
 
 import com.stockies.social_finance_api.dto.CategoryDto;
 import com.stockies.social_finance_api.dto.TransactionDto;
+import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.HashMap;
 import java.util.Map;
 
+@Service
 public class CategoriserServiceImpl implements CategoriserService {
     private final String PYTHONAPI_URL = "http://localhost:8000/classify";
     private final RestTemplate restTemplate = new RestTemplate();
