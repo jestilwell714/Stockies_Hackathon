@@ -1,10 +1,15 @@
 package com.stockies.social_finance_api.controller;
 
+import com.stockies.social_finance_api.Repository.FriendGroupRepository;
 import com.stockies.social_finance_api.dto.FriendGroupDto;
+import com.stockies.social_finance_api.entity.FriendGroup;
 import com.stockies.social_finance_api.service.FriendGroupService;
+import org.springframework.cglib.core.Local;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -12,9 +17,10 @@ import java.util.Map;
 public class FriendGroupController {
 
     private final FriendGroupService groupService;
-
-    public FriendGroupController(FriendGroupService groupService) {
+    private final FriendGroupRepository groupRepository;
+    public FriendGroupController(FriendGroupService groupService, FriendGroupRepository groupRepository) {
         this.groupService = groupService;
+        this.groupRepository = groupRepository;
     }
 
     @PostMapping("/join")
@@ -36,6 +42,18 @@ public class FriendGroupController {
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
+    }
+
+    @PostMapping("/end-all")
+    public ResponseEntity<String> endAllChallenges(@RequestBody LocalDateTime localDateTime){
+
+        List<FriendGroup> allGroups = groupRepository.findAll();
+
+        for (FriendGroup group : allGroups) {
+            groupService.endWeeklyChallenge(group.getId(),localDateTime);
+        }
+
+        return ResponseEntity.ok("Successfully processed " + allGroups.size() + " groups.");
     }
 
 }
