@@ -52,7 +52,7 @@ public class TransactionServiceImpl implements TransactionService{
         Transaction entity = transactionRepository.save(transaction);
         TransactionDto result = mapper.toDto(entity);
 
-        if (entity.getUser().getFriendGroup() != null) {
+        if (entity.getUser().getFriendGroup() != null && !entity.getUser().getFriendGroup().getBannedCategories().contains(finalCategory)) {
             String topic = "/front/updates/" + entity.getUser().getFriendGroup().getId();
             messagingTemplate.convertAndSend(topic, result);
         }
