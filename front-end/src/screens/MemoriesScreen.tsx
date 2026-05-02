@@ -44,11 +44,21 @@ export function MemoriesScreen({ adapter, groupId, onBack }: MemoriesScreenProps
       .catch(() => setServerError(true));
   }, [adapter, groupId]);
 
+  /** Sync horizontal offset whenever the selected month or layout can change (carousel exists only after recaps load). */
   useEffect(() => {
-    requestAnimationFrame(() => {
-      monthScrollRef.current?.scrollTo({ x: activeMonth * monthSnap, animated: false });
+    if (!recaps) return;
+
+    const x = activeMonth * monthSnap;
+    const scrollIntoView = () => {
+      monthScrollRef.current?.scrollTo({ x, animated: false });
+      monthScrollX.setValue(x);
+    };
+
+    const id = requestAnimationFrame(() => {
+      requestAnimationFrame(scrollIntoView);
     });
-  }, []);
+    return () => cancelAnimationFrame(id);
+  }, [recaps, width, activeMonth]);
 
   useEffect(() => {
     contentAnim.setValue(0);
@@ -113,7 +123,6 @@ export function MemoriesScreen({ adapter, groupId, onBack }: MemoriesScreenProps
                 key={month.fullLabel}
                 onPress={() => {
                   setActiveMonth(index);
-                  monthScrollRef.current?.scrollTo({ x: index * monthSnap, animated: true });
                 }}
               >
                 <Animated.View style={[styles.monthCard, active && styles.activeMonthCard, { opacity, transform: [{ scale }, { translateY }] }]}>
