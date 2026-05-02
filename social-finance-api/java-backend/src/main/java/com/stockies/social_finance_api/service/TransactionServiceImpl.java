@@ -30,11 +30,10 @@ public class TransactionServiceImpl implements TransactionService{
 
     @Override
     public TransactionDto createTransaction(TransactionDto dto) {
-        User user = userRepository.findById(dto.getId())
-                .orElseThrow(() -> new RuntimeException("User not found with id: " + dto.getUserId()));
+        User user = userRepository.findById(dto.getId()).orElseThrow(() -> new RuntimeException("User not found with id: " + dto.getUserId()));
         Transaction transaction = mapper.toEntity(dto);
         transaction.setUser(user);
-
+        transaction.setTimestamp(dto.getTimestamp());
         Optional<Transaction> sameCategoryTransaction = transactionRepository.findFirstByUserIdAndDescription(dto.getUserId(), dto.getDescription());
         String finalCategory;
         if (sameCategoryTransaction.isPresent()) {
