@@ -1,359 +1,346 @@
-import re
-import csv
-import io
-import sqlite3
-import anthropic
+from __future__ import annotations
 
-from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException, UploadFile, File
+import asyncio
+import json
+import re
+import threading
+import time
+from pathlib import Path
+from typing import Literal
+
+import os
+
+from fastapi import FastAPI, HTTPException
+from openai import OpenAI
 from pydantic import BaseModel
 
-# ── Constants ─────────────────────────────────────────────────────────────
+from normalize_text import normalize
+from rules import classify_with_rules
 
-ALL_CATEGORIES = [
-    "eating_out",
-    "groceries",
-    "clothing",
-    "transport",
-    "rent",
-    "subscriptions",
-    "entertainment",
-    "other"
-]
+_APP_DIR = Path(__file__).resolve().parent
+_REPO_ROOT = _APP_DIR.parent.parent
+_AGENT_PROMPTS_PATH = _APP_DIR / "agent_prompts"
 
-SEED_MERCHANTS = [
-    ("mcdonalds", "eating_out"),
-    ("kfc", "eating_out"),
-    ("uber eats", "eating_out"),
-    ("doordash", "eating_out"),
-    ("subway", "eating_out"),
-    ("burger king", "eating_out"),
-    ("nandos", "eating_out"),
 
-    ("countdown", "groceries"),
-    ("paknsave", "groceries"),
-    ("new world", "groceries"),
-    ("fresh choice", "groceries"),
-    ("the warehouse", "groceries"),
+def _load_dotenv_files(*paths: Path) -> None:
+    """Populate os.environ from KEY=VALUE lines; does not override existing vars."""
+    for path in paths:
+        if not path.is_file():
+            continue
+        try:
+            text = path.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        for raw in text.splitlines():
+            line = raw.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, val = line.partition("=")
+            key = key.strip()
+            if not key or key in os.environ:
+                continue
+            val = val.strip()
+            if len(val) >= 2 and val[0] == val[-1] and val[0] in "\"'":
+                val = val[1:-1]
+            os.environ[key] = val
 
-    ("uber", "transport"),
-    ("ola", "transport"),
-    ("at hop", "transport"),
-    ("z energy", "transport"),
-    ("bp", "transport"),
-    ("caltex", "transport"),
 
-    ("zara", "clothing"),
-    ("cotton on", "clothing"),
-    ("glassons", "clothing"),
-    ("h&m", "clothing"),
-    ("asos", "clothing"),
+_load_dotenv_files(
+    _REPO_ROOT / ".env.local",
+    _REPO_ROOT / ".env",
+    _APP_DIR / ".env.local",
+    _APP_DIR / ".env",
+)
 
-    ("netflix", "subscriptions"),
-    ("spotify", "subscriptions"),
-    ("apple", "subscriptions"),
-    ("google", "subscriptions"),
+app = FastAPI()
 
-    ("steam", "entertainment"),
-    ("ticketek", "entertainment"),
-    ("sky sport", "entertainment"),
-]
+_cache_lock = threading.Lock()
+# cache key = normalize(desc) + amount (see _cache_key); value = (category, source, monotonic_ts); disabled when TTL <= 0
+_rule_cache: dict[str, tuple[str, Literal["rules", "llm"], float]] = {}
 
-# ── Database ──────────────────────────────────────────────────────────────
 
-def get_db():
-    conn = sqlite3.connect("classifier.db")
-    conn.row_factory = sqlite3.Row
-    return conn
+def _cache_ttl_sec() -> float:
+    return float(os.getenv("CLASSIFIER_RULE_CACHE_TTL_SEC", "86400"))
 
-def init_db():
-    db = get_db()
 
-    db.execute("""
-        CREATE TABLE IF NOT EXISTS merchant_cache (
-            merchant    TEXT PRIMARY KEY,
-            category    TEXT NOT NULL,
-            method      TEXT NOT NULL DEFAULT 'seed',
-            created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
+def _cache_key(norm_description: str, amount: float) -> str:
+    """Include amount so fuel rules and LLM amount hints cannot cross-contaminate."""
+    return f"{norm_description}\x1f{amount!r}"
 
-    db.executemany("""
-        INSERT OR IGNORE INTO merchant_cache
-        (merchant, category, method)
-        VALUES (?, ?, 'seed')
-    """, SEED_MERCHANTS)
 
-    db.commit()
-    db.close()
+def _cache_get(norm_description: str, amount: float) -> tuple[str, Literal["rules", "llm"]] | None:
+    ttl = _cache_ttl_sec()
+    if ttl <= 0:
+        return None
+    now = time.monotonic()
+    key = _cache_key(norm_description, amount)
+    with _cache_lock:
+        entry = _rule_cache.get(key)
+        if not entry:
+            return None
+        category, source, ts = entry
+        if now - ts > ttl:
+            del _rule_cache[key]
+            return None
+        return category, source
 
-# ── Lifespan ──────────────────────────────────────────────────────────────
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    init_db()
-    yield
+def _cache_put(
+    norm_description: str,
+    amount: float,
+    category: str,
+    source: Literal["rules", "llm"],
+) -> None:
+    if _cache_ttl_sec() <= 0:
+        return
+    key = _cache_key(norm_description, amount)
+    with _cache_lock:
+        _rule_cache[key] = (category, source, time.monotonic())
 
-app = FastAPI(lifespan=lifespan)
 
-# ── Schemas ───────────────────────────────────────────────────────────────
+_unmatched_lock = threading.Lock()
 
-class TransactionRequest(BaseModel):
+
+def _unmatched_log_path() -> Path:
+    raw = (os.getenv("CLASSIFIER_UNMATCHED_LOG") or "").strip()
+    return Path(raw) if raw else _APP_DIR / "unmatched_transactions.jsonl"
+
+
+def log_unmatched_transaction(description: str, amount: float) -> None:
+    path = _unmatched_log_path()
+    line = json.dumps({"description": description, "amount": amount}, ensure_ascii=False) + "\n"
+    with _unmatched_lock:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as f:
+            f.write(line)
+
+
+def _openrouter_api_key() -> str | None:
+    return os.getenv("OPENROUTER_API_KEY") or os.getenv("OPENROUTER_LLM_API")
+
+
+def _openrouter_base_url() -> str:
+    return os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1").rstrip("/")
+
+
+def _openrouter_model() -> str:
+    # `*:free` models only work when OpenRouter has an active free provider; otherwise you get 404
+    # "No endpoints found". Use the non-`:free` id for the normal (metered) route.
+    return os.getenv("OPENROUTER_MODEL", "deepseek/deepseek-v4-flash")
+
+
+def _openrouter_default_headers() -> dict[str, str] | None:
+    """Optional OpenRouter attribution headers (https://openrouter.ai/docs)."""
+    referer = (os.getenv("OPENROUTER_HTTP_REFERER") or "").strip()
+    title = (os.getenv("OPENROUTER_APP_TITLE") or "").strip()
+    if not referer and not title:
+        return None
+    h: dict[str, str] = {}
+    if referer:
+        h["HTTP-Referer"] = referer
+    if title:
+        h["X-Title"] = title
+    return h or None
+
+
+def _load_agent_prompt_template() -> str:
+    try:
+        return _AGENT_PROMPTS_PATH.read_text(encoding="utf-8")
+    except OSError as e:
+        raise RuntimeError(f"Cannot read agent prompts at {_AGENT_PROMPTS_PATH}") from e
+
+
+def _allowed_categories_from_template(template: str) -> list[str]:
+    # Legacy phrase from older prompts
+    m = re.search(
+        r"Allowed slug list \(exactly one token from this comma-separated list\):\s*(.+?)(?:\n\n|\nTransaction|$)",
+        template,
+        re.DOTALL | re.IGNORECASE,
+    )
+    if not m:
+        # Current agent_prompts: "**Allowed Slug List:**" then a comma-separated line
+        m = re.search(r"(?im)^\*\*Allowed Slug List:\*\*\s*\n\s*(.+)$", template)
+    if not m:
+        raise ValueError("agent_prompts missing Allowed slug list block")
+    return [s.strip().lower() for s in m.group(1).strip().split(",") if s.strip()]
+
+
+class TransactionIn(BaseModel):
+    """Single uncategorized row; `description` is the bank/card line sent to the LLM."""
+
     description: str
     amount: float
-    bad_categories: list[str]
 
-class ClassificationResult(BaseModel):
+class ClassifyRequest(BaseModel):
+    transactions: list[TransactionIn]
+
+
+class CategorizedTransaction(BaseModel):
+    description: str
+    amount: float
     category: str
-    method: str
-    is_bad_spend: bool
-    needs_review: bool
+    source: Literal["rules", "llm"]
 
-class CacheOverride(BaseModel):
-    merchant: str
-    category: str
 
-# ── Merchant Extraction ───────────────────────────────────────────────────
+class ClassifyResponse(BaseModel):
+    transactions: list[CategorizedTransaction]
 
-def extract_merchant(description: str) -> str:
-    """
-    Minimal cleaning only.
-    """
 
-    cleaned = description.lower()
-
-    # remove large numeric IDs
-    cleaned = re.sub(r'\b\d{4,}\b', '', cleaned)
-
-    # collapse whitespace
-    cleaned = re.sub(r'\s+', ' ', cleaned).strip()
-
-    return cleaned
-
-# ── Cache Lookup ──────────────────────────────────────────────────────────
-
-def cache_lookup(merchant: str, db) -> str | None:
-    """
-    Fuzzy keyword matching.
-
-    Example:
-    "mcdonalds queen street auckland"
-    matches:
-    "mcdonalds"
-    """
-
-    rows = db.execute("""
-        SELECT merchant, category
-        FROM merchant_cache
-    """).fetchall()
-
-    merchant = merchant.lower()
-
-    for row in rows:
-
-        cached = row["merchant"].lower()
-
-        # exact match
-        if cached == merchant:
-            return row["category"]
-
-        # keyword match
-        if cached in merchant:
-            return row["category"]
-
-    return None
-
-# ── LLM Classification ────────────────────────────────────────────────────
-
-def llm_classify(description: str) -> str:
-
-    client = anthropic.Anthropic()
-
-    cat_list = ", ".join(ALL_CATEGORIES)
-
-    msg = client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=20,
-        messages=[{
-            "role": "user",
-            "content": (
-                f"Classify this bank transaction into exactly one of: {cat_list}.\n"
-                f"Transaction: '{description}'\n"
-                f"Reply with only the category name."
-            )
-        }]
+def _render_prompt(template: str, *, description: str, amount: float, currency: str) -> str:
+    return (
+        template.replace("{description}", description.strip())
+        .replace("{amount}", f"{amount:.2f}")
+        .replace("{currency}", currency)
     )
 
-    result = msg.content[0].text.strip().lower()
 
-    if result not in ALL_CATEGORIES:
-        return "other"
+async def classify_with_llm(
+    description: str,
+    amount: float,
+    template: str,
+    allowed: list[str],
+    *,
+    currency: str = "GBP",
+) -> str:
+    return await asyncio.to_thread(
+        llm_classify,
+        description,
+        amount,
+        template,
+        allowed,
+        currency=currency,
+    )
 
+
+def llm_classify(
+    description: str,
+    amount: float,
+    template: str,
+    allowed: list[str],
+    *,
+    currency: str = "GBP",
+) -> str:
+    key = _openrouter_api_key()
+    if not key:
+        raise HTTPException(
+            status_code=503,
+            detail="OpenRouter API key missing: set OPENROUTER_API_KEY "
+            "(e.g. in .env.local at repo root).",
+        )
+    headers = _openrouter_default_headers()
+    client = OpenAI(
+        api_key=key,
+        base_url=_openrouter_base_url(),
+        **({"default_headers": headers} if headers else {}),
+    )
+    user_content = _render_prompt(template, description=description, amount=amount, currency=currency)
+    msg = client.chat.completions.create(
+        model=_openrouter_model(),
+        max_tokens=40,
+        messages=[{"role": "user", "content": user_content}],
+    )
+    result = (msg.choices[0].message.content or "").strip().lower()
+    if result not in allowed:
+        fallback = "uncatergorise" if "uncatergorise" in allowed else "uncategorised"
+        if fallback not in allowed:
+            return allowed[-1]
+        return fallback
     return result
 
-# ── Main Classification Logic ─────────────────────────────────────────────
 
-def classify(description: str, db) -> dict:
-
-    merchant = extract_merchant(description)
-
-    # try cache first
-    category = cache_lookup(merchant, db)
-
-    if category:
-        return {
-            "category": category,
-            "method": "cache",
-            "needs_review": False
-        }
-
-    # fallback to LLM
-    category = llm_classify(description)
-
-    # save learned merchant
-    db.execute("""
-        INSERT OR REPLACE INTO merchant_cache
-        (merchant, category, method)
-        VALUES (?, ?, 'llm')
-    """, (merchant, category))
-
-    db.commit()
-
-    return {
-        "category": category,
-        "method": "llm",
-        "needs_review": True
-    }
-
-# ── Single Transaction Route ──────────────────────────────────────────────
-
-@app.post("/classify", response_model=ClassificationResult)
-def classify_transaction(req: TransactionRequest):
-
-    db = get_db()
-
-    try:
-
-        result = classify(req.description, db)
-
-        return ClassificationResult(
-            **result,
-            is_bad_spend=result["category"] in req.bad_categories
+async def classify_transaction(
+    description: str,
+    amount: float,
+    *,
+    template: str,
+    allowed: list[str],
+    currency: str = "GBP",
+) -> CategorizedTransaction:
+    line = description.strip()
+    norm = normalize(line)
+    cached = _cache_get(norm, amount)
+    if cached:
+        category, source = cached
+        return CategorizedTransaction(
+            description=description,
+            amount=amount,
+            category=category,
+            source=source,
         )
 
-    finally:
-        db.close()
+    rule_result = classify_with_rules(line, amount)
+    if rule_result:
+        _cache_put(norm, amount, rule_result, "rules")
+        return CategorizedTransaction(
+            description=description,
+            amount=amount,
+            category=rule_result,
+            source="rules",
+        )
 
-# ── CSV Upload Route ──────────────────────────────────────────────────────
+    log_unmatched_transaction(description, amount)
+    llm_result = await classify_with_llm(line, amount, template, allowed, currency=currency)
+    _cache_put(norm, amount, llm_result, "llm")
+    return CategorizedTransaction(
+        description=description,
+        amount=amount,
+        category=llm_result,
+        source="llm",
+    )
 
-@app.post("/classify-csv")
-async def classify_csv(
-    file: UploadFile = File(...),
-    bad_categories: str = ""
-):
 
-    if not file.filename.endswith(".csv"):
+@app.post("/classify", response_model=ClassifyResponse)
+async def classify_transactions(body: ClassifyRequest):
+    if not body.transactions:
+        raise HTTPException(status_code=400, detail="transactions must not be empty")
+
+    template = _load_agent_prompt_template()
+    allowed = _allowed_categories_from_template(template)
+
+    out: list[CategorizedTransaction] = []
+    for t in body.transactions:
+        line = t.description.strip()
+        if not line:
+            raise HTTPException(
+                status_code=400,
+                detail="Each transaction needs a non-empty description",
+            )
+
+        categorized = await classify_transaction(
+            t.description,
+            t.amount,
+            template=template,
+            allowed=allowed,
+        )
+        out.append(categorized)
+
+    return ClassifyResponse(transactions=out)
+
+
+@app.post("/classify-one", response_model=CategorizedTransaction)
+async def classify_one_transaction(body: TransactionIn):
+    line = body.description.strip()
+    if not line:
         raise HTTPException(
             status_code=400,
-            detail="File must be a CSV"
+            detail="Transaction needs a non-empty description",
         )
 
-    contents = await file.read()
+    template = _load_agent_prompt_template()
+    allowed = _allowed_categories_from_template(template)
 
-    try:
-        text = contents.decode("utf-8")
+    return await classify_transaction(
+        body.description,
+        body.amount,
+        template=template,
+        allowed=allowed,
+    )
 
-    except:
-        raise HTTPException(
-            status_code=400,
-            detail="Could not decode CSV"
-        )
 
-    reader = csv.DictReader(io.StringIO(text))
+if __name__ == "__main__":
+    import uvicorn
 
-    db = get_db()
-
-    results = []
-
-    bad_set = {
-        x.strip().lower()
-        for x in bad_categories.split(",")
-        if x.strip()
-    }
-
-    try:
-
-        for row in reader:
-
-            description = row.get("description", "")
-            amount = row.get("amount", "")
-
-            if not description:
-                continue
-
-            result = classify(description, db)
-
-            results.append({
-                "description": description,
-                "amount": amount,
-                "category": result["category"],
-                "method": result["method"],
-                "needs_review": result["needs_review"],
-                "is_bad_spend": result["category"] in bad_set
-            })
-
-        return {
-            "count": len(results),
-            "transactions": results
-        }
-
-    finally:
-        db.close()
-
-# ── Manual Override Route ─────────────────────────────────────────────────
-
-@app.post("/cache/override")
-def override_cache(body: CacheOverride):
-
-    if body.category not in ALL_CATEGORIES:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid category: {body.category}"
-        )
-
-    db = get_db()
-
-    try:
-
-        db.execute("""
-            INSERT OR REPLACE INTO merchant_cache
-            (merchant, category, method)
-            VALUES (?, ?, 'user')
-        """, (body.merchant.lower(), body.category))
-
-        db.commit()
-
-        return {"status": "updated"}
-
-    finally:
-        db.close()
-
-# ── Cache Viewer ──────────────────────────────────────────────────────────
-
-@app.get("/cache")
-def list_cache():
-
-    db = get_db()
-
-    try:
-
-        rows = db.execute("""
-            SELECT *
-            FROM merchant_cache
-            ORDER BY created_at DESC
-        """).fetchall()
-
-        return [dict(r) for r in rows]
-
-    finally:
-        db.close()
+    # 0.0.0.0 = listen on all interfaces so other machines can use http://<this-host-LAN-IP>:port
+    host = os.getenv("CLASSIFIER_HOST", "0.0.0.0")
+    port = int(os.getenv("CLASSIFIER_PORT", "8000"))
+    uvicorn.run("main_classifier:app", host=host, port=port, reload=True)
