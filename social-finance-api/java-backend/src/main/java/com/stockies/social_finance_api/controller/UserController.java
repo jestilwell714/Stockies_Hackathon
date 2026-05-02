@@ -2,12 +2,14 @@ package com.stockies.social_finance_api.controller;
 
 import com.stockies.social_finance_api.dto.UserDto;
 import com.stockies.social_finance_api.entity.User;
+import com.stockies.social_finance_api.request.QuickLoginRequest;
 import com.stockies.social_finance_api.service.UserService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @RestController
@@ -33,4 +35,13 @@ public class UserController {
                 .map(UserDto::getId)
                 .toList();
     }
+
+    @PostMapping("/quick-login")
+    public ResponseEntity<UserDto> quickLogin(@RequestBody QuickLoginRequest request) {
+        UserDto newUser = UserDto.builder().username(request.username()).totalPoints(0).goldMedals(0).silverMedals(0).bronzeMedals(0).build();
+
+        UserDto savedUser = userService.createUser(newUser);
+        return ResponseEntity.ok(savedUser);
+    }
 }
+
