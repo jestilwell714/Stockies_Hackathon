@@ -2,6 +2,7 @@ package com.stockies.social_finance_api.Simulator;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import com.stockies.social_finance_api.entity.Transaction;
 
 import java.io.IOException;
 import java.lang.reflect.Type;
@@ -9,6 +10,8 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Random;
 
@@ -20,8 +23,24 @@ public class Simulator {
 
     public static void main() throws Exception {
         List<Long> userIds = fetchUserIds();
+        List<TransactionDto> transactionDtos = readCsv("");
 
+        transactionLoop(userIds, transactionDtos);
 
+    }
+
+    private static List<TransactionDto> readCsv(String filePath) throws IOException {
+        return Files.lines(Paths.get(filePath))
+                .skip(1)
+                .map(line -> line.split(","))
+                .filter(parts -> parts.length >= 2)
+                .map(parts -> new TransactionDto(
+                        null,
+                        parts[0].trim(),
+                        Double.parseDouble(parts[1].trim()),
+                        "other"
+                ))
+                .toList();
     }
 
     private static void transactionLoop(List<Long> userIds, List<TransactionDto> transactions) throws IOException, InterruptedException {
@@ -66,9 +85,7 @@ public class Simulator {
             throw new RuntimeException("Failed: " + response.statusCode());
         }
 
-
         Type listType = new TypeToken<List<Long>>(){}.getType();
-
         return gson.fromJson(response.body(), listType);
     }
 
