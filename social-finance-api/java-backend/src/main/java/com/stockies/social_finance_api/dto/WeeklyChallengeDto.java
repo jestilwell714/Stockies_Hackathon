@@ -4,11 +4,12 @@ import lombok.Builder;
 import lombok.Data;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Data
 @Builder
 public class WeeklyChallengeDto {
     private Long id;
-    private LocalDate startDate; // The Sunday it snapped to
-    private LocalDate endDate;
+    private LocalDateTime startDate; // The Sunday it snapped to
+    private LocalDateTime endDate;
 }
