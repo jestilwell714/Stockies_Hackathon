@@ -4,6 +4,7 @@ import lombok.Builder;
 import lombok.Data;
 
 import java.util.List;
+import java.util.Set;
 
 @Data
 @Builder
@@ -11,6 +12,6 @@ public class FriendGroupDto {
         private Long id;
         private String groupName;
         private String inviteCode;
-        private List<String> bannedCategories;
+        private Set<String> bannedCategories;
         private List<Long> members;
 }

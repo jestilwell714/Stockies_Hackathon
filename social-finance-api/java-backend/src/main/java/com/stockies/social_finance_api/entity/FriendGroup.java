@@ -4,6 +4,7 @@ import com.stockies.social_finance_api.entity.*;
 import jakarta.persistence.*;
 import lombok.*;
 import java.util.List;
+import java.util.Set;
 
 @Entity
 @Table(name = "friend_groups")
@@ -21,7 +22,7 @@ public class FriendGroup {
     private String groupName;
 
     @ElementCollection
-    private List<String> bannedCategories;
+    private Set<String> bannedCategories;
 
     @Column(unique = true)
     private String inviteCode;
