@@ -22,10 +22,9 @@ public class Simulator {
     private static final HttpClient client = HttpClient.newHttpClient();
     private static Gson gson = new Gson();
 
-    public static void main() throws Exception {
+    public static void main(String[] args) throws Exception {
         List<Long> userIds = fetchUserIds();
-        List<TransactionDto> transactionDtos = readCsv("");
-
+        List<TransactionDto> transactionDtos = readCsv("src/main/java/com/stockies/social_finance_api/Simulator/simulation_data.txt");
         transactionLoop(userIds, transactionDtos);
     }
 
@@ -60,7 +59,7 @@ public class Simulator {
 
             System.out.println("Simulating transaction for: " + template.timestamp());
 
-            Thread.sleep(500);
+            Thread.sleep(250);
         }
     }
 

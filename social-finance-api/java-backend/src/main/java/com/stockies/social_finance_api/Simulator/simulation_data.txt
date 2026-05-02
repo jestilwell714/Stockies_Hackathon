@@ -1,0 +1,51 @@
+timestamp,description,amount,category
+2026-05-04T08:15:00,Mojo Coffee,6.50,Coffee
+2026-05-04T08:45:00,Snapper Top-Up,20.00,Transport
+2026-05-04T12:30:00,New World Metro,14.80,Groceries
+2026-05-04T18:15:00,Burger Fuel,22.50,Fast Food
+2026-05-05T07:50:00,Raglan Roast,5.00,Coffee
+2026-05-05T12:15:00,Sushi Bi,12.00,Food
+2026-05-05T17:30:00,Countdown,65.40,Groceries
+2026-05-05T19:00:00,Event Cinemas,23.50,Entertainment
+2026-05-06T08:20:00,Starbucks,8.50,Coffee
+2026-05-06T13:00:00,KFC,16.90,Fast Food
+2026-05-06T19:30:00,Hell Pizza,33.00,Fast Food
+2026-05-07T08:10:00,Mojo Coffee,6.50,Coffee
+2026-05-07T12:45:00,McDonalds,13.50,Fast Food
+2026-05-07T15:30:00,Z Energy,85.00,Transport
+2026-05-07T18:00:00,Pak n Save,145.20,Groceries
+2026-05-08T09:00:00,Flight Coffee,6.00,Coffee
+2026-05-08T12:30:00,Subway,11.50,Fast Food
+2026-05-08T20:00:00,The Green Man Pub,45.00,Entertainment
+2026-05-08T23:30:00,KFC,21.50,Fast Food
+2026-05-09T10:15:00,New World,32.10,Groceries
+2026-05-09T11:30:00,Bunnings Warehouse,55.00,Shopping
+2026-05-09T14:00:00,Macca's,15.20,Fast Food
+2026-05-09T19:00:00,Reading Cinemas,45.00,Entertainment
+2026-05-10T09:30:00,L'affare,18.50,Food
+2026-05-10T13:15:00,Chemist Warehouse,28.40,Shopping
+2026-05-10T18:45:00,Domino's Pizza,15.00,Fast Food
+2026-05-11T08:05:00,Mojo Coffee,6.50,Coffee
+2026-05-11T12:20:00,Pita Pit,14.50,Fast Food
+2026-05-11T17:45:00,New World Metro,24.80,Groceries
+2026-05-12T08:15:00,Snapper Top-Up,30.00,Transport
+2026-05-12T12:30:00,McDonalds,11.00,Fast Food
+2026-05-12T19:15:00,Burger King,16.50,Fast Food
+2026-05-13T07:55:00,Raglan Roast,5.00,Coffee
+2026-05-13T13:00:00,Sushi Bi,14.50,Food
+2026-05-13T18:30:00,Woolworths,88.50,Groceries
+2026-05-14T08:30:00,Starbucks,8.50,Coffee
+2026-05-14T12:45:00,KFC,18.00,Fast Food
+2026-05-14T17:00:00,BP Connect,95.00,Transport
+2026-05-15T08:15:00,Mojo Coffee,6.50,Coffee
+2026-05-15T12:15:00,New World,15.50,Groceries
+2026-05-15T19:00:00,1154 Pastaria,38.00,Food
+2026-05-15T22:30:00,McDonalds,24.50,Fast Food
+2026-05-16T10:00:00,Mitre 10,42.00,Shopping
+2026-05-16T12:30:00,Burger Fuel,25.00,Fast Food
+2026-05-16T18:00:00,Pak n Save,112.30,Groceries
+2026-05-17T09:45:00,Flight Coffee,12.50,Coffee
+2026-05-17T13:30:00,Subway,14.00,Fast Food
+2026-05-17T19:15:00,Hell Pizza,45.00,Fast Food
+2026-05-18T08:10:00,Mojo Coffee,6.50,Coffee
+2026-05-18T12:30:00,New World Metro,18.20,Groceries
