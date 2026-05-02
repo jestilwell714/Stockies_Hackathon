@@ -29,9 +29,9 @@ public class FriendGroupController {
 
     @PostMapping("/create")
     public ResponseEntity<?> createGroup(
-            @RequestParam String groupName) {
+            @RequestHeader("X-User-Id") Long userId) {
         try {
-            FriendGroupDto newGroup = groupService.createGroup(groupName, creatorId);
+            FriendGroupDto newGroup = groupService.createGroup(userId);
             return ResponseEntity.ok(newGroup);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
