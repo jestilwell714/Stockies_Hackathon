@@ -12,10 +12,13 @@ import com.stockies.social_finance_api.entity.Transaction;
 import com.stockies.social_finance_api.entity.User;
 import com.stockies.social_finance_api.entity.WeeklyChallenge;
 import com.stockies.social_finance_api.mapper.FriendGroupMapper;
+import org.springframework.cglib.core.Local;
 import org.springframework.stereotype.Service;
 
 import java.security.SecureRandom;
+import java.time.DayOfWeek;
 import java.time.LocalDateTime;
+import java.time.temporal.TemporalAdjusters;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -98,6 +101,16 @@ public class FriendGroupServiceImpl implements FriendGroupService {
                 .orElseThrow(() -> new RuntimeException("Group not found with that code!"));
 
         user.setFriendGroup(group);
+
+        LocalDateTime currentTime = LocalDateTime.now();
+        LocalDateTime startTime = currentTime.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+                .withHour(0)
+                .withMinute(0)
+                .withSecond(0)
+                .withNano(0);
+        LocalDateTime endTime = startTime.plusDays(6).plusHours(23).plusMinutes(59).plusSeconds(59);
+        WeeklyChallengeDto newChallenge = WeeklyChallengeDto.builder().startDate(startTime).endDate(endTime).build();
+        weeklyChallengeService.createChallenge(newChallenge);
         userRepository.save(user);
     }
 
