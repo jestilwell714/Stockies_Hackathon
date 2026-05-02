@@ -7,4 +7,5 @@ import java.util.Optional;
 
 public interface FriendGroupRepository extends JpaRepository<FriendGroup, Long> {
     Optional<FriendGroup> findByInviteCode(String inviteCode);
+    Optional<FriendGroup> findTopByOrdersByIdDesc();
 }
