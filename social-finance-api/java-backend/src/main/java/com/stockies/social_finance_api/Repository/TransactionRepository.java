@@ -16,4 +16,11 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
             LocalDateTime start,
             LocalDateTime end
     );
+
+
+    List<Transaction> findAllByUserFriendGroupIdAndTimestampBetween(
+            Long groupId,
+            LocalDateTime start,
+            LocalDateTime end
+    );
 }
