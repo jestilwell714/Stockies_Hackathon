@@ -12,6 +12,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Random;
 
@@ -26,19 +27,18 @@ public class Simulator {
         List<TransactionDto> transactionDtos = readCsv("");
 
         transactionLoop(userIds, transactionDtos);
-
     }
 
     private static List<TransactionDto> readCsv(String filePath) throws IOException {
         return Files.lines(Paths.get(filePath))
                 .skip(1)
                 .map(line -> line.split(","))
-                .filter(parts -> parts.length >= 2)
+                .filter(parts -> parts.length >= 4)
                 .map(parts -> new TransactionDto(
                         null,
-                        parts[0].trim(),
-                        Double.parseDouble(parts[1].trim()),
-                        "other"
+                        parts[1].trim(),
+                        Double.parseDouble(parts[2].trim()),
+                        parts[0].trim()
                 ))
                 .toList();
     }
@@ -54,9 +54,13 @@ public class Simulator {
                     id,
                     template.description(),
                     template.amount(),
-                    template.category()
+                    template.timestamp()
             );
             postTransaction(transaction);
+
+            System.out.println("Simulating transaction for: " + template.timestamp());
+
+            Thread.sleep(500);
             ++i;
         }
     }

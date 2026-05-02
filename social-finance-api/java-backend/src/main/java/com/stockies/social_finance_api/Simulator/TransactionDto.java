@@ -4,5 +4,5 @@ public record TransactionDto(
         Long userId,
         String description,
         double amount,
-        String category
+        String timestamp
 ) {}
