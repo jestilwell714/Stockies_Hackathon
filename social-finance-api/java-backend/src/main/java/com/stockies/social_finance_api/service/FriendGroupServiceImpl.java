@@ -48,11 +48,11 @@ public class FriendGroupServiceImpl implements FriendGroupService {
     @Override
     public void endWeeklyChallenge(Long groupId, LocalDateTime referenceTime) {
         List<User> users = userRepository.findByFriendGroupId(groupId);
-                LocalDateTime challengeEnd = referenceTime.minusDays(1)
+        LocalDateTime challengeEnd = referenceTime.minusDays(1)
                 .withHour(23).withMinute(59).withSecond(59).withNano(0);
         LocalDateTime challengeStart = challengeEnd.minusDays(6)
                 .withHour(0).withMinute(0).withSecond(0).withNano(0);
-        WeeklyChallenge challenge = challengeRepository.findByStartDateBeforeAndEndDateAfter(challengeStart,challengeEnd).get();
+        WeeklyChallenge challenge = challengeRepository.findByStartDateBeforeAndEndDateAfter(challengeStart, challengeEnd).get();
         List<Transaction> transactions = transactionRepository.findAllByUserFriendGroupIdAndTimestampBetween(groupId, challengeStart, challengeEnd);
 
         Map<Long, Double> userSpending = transactions.stream()
@@ -123,7 +123,6 @@ public class FriendGroupServiceImpl implements FriendGroupService {
         user.setFriendGroup(newFriendGroup);
 
 
-
         return friendGroupMapper.toDto(newFriendGroup);
     }
 
@@ -135,5 +134,24 @@ public class FriendGroupServiceImpl implements FriendGroupService {
             code.append(characters.charAt(random.nextInt(characters.length())));
         }
         return code.toString();
+    }
+
+    @Override
+    public FriendGroupDto assignToGroup(Long userId) {
+        FriendGroup friendGroup = groupRepository.findTopByOrdersByIdDesc()
+                .filter(g -> g.getMembers().size() < 8).orElse(null);
+
+
+        if (friendGroup != null && friendGroup.getMembers().size() < 8) {
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+
+            user.setFriendGroup(friendGroup);
+            userRepository.save(user);
+
+            return friendGroupMapper.toDto(friendGroup);
+        } else {
+            return createGroup(userId);
+        }
     }
 }
