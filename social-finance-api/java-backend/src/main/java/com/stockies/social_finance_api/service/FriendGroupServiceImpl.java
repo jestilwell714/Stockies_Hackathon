@@ -138,9 +138,8 @@ public class FriendGroupServiceImpl implements FriendGroupService {
 
     @Override
     public FriendGroupDto assignToGroup(Long userId) {
-        FriendGroup friendGroup = groupRepository.findTopByOrdersByIdDesc()
+        FriendGroup friendGroup = groupRepository.findTopByOrderByIdDesc()
                 .filter(g -> g.getMembers().size() < 8).orElse(null);
-
 
         if (friendGroup != null && friendGroup.getMembers().size() < 8) {
             User user = userRepository.findById(userId)
