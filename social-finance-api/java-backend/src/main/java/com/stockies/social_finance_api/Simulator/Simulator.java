@@ -46,9 +46,9 @@ public class Simulator {
     private static void transactionLoop(List<Long> userIds, List<TransactionDto> transactions) throws IOException, InterruptedException {
         Random r = new Random();
         int n = userIds.size();
-        int i = 0;
-        while(true) {
-            Long id = r.nextLong(n);
+        for(int i = 0; i < transactions.size(); ++i) {
+            int index = r.nextInt(userIds.size());
+            Long id = userIds.get(index);
             TransactionDto template = transactions.get(i);
             TransactionDto transaction = new TransactionDto(
                     id,
@@ -61,7 +61,6 @@ public class Simulator {
             System.out.println("Simulating transaction for: " + template.timestamp());
 
             Thread.sleep(500);
-            ++i;
         }
     }
 
