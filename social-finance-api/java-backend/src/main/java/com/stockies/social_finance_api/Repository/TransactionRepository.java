@@ -11,4 +11,9 @@ import java.util.Optional;
 public interface TransactionRepository extends JpaRepository<Transaction, Long> {
     List<Transaction> findByUserIdAndTimestampBetween(Long userId, LocalDateTime start, LocalDateTime end);
     Optional<Transaction> findFirstByUserIdAndDescription(Long userId, String description);
+    List<Transaction> findAllByUserIdAndTimestampBetween(
+            Long userId,
+            LocalDateTime start,
+            LocalDateTime end
+    );
 }
