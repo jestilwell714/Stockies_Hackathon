@@ -1,0 +1,68 @@
+package com.stockies.social_finance_api.service;
+
+import com.stockies.social_finance_api.Repository.TransactionRepository;
+import com.stockies.social_finance_api.Repository.UserRepository;
+import com.stockies.social_finance_api.Repository.WeeklyChallengeRepository;
+import com.stockies.social_finance_api.dto.UserDto;
+import com.stockies.social_finance_api.entity.Transaction;
+import com.stockies.social_finance_api.entity.User;
+import com.stockies.social_finance_api.entity.WeeklyChallenge;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+public class FriendGroupServiceImpl implements FriendGroupService {
+
+    private final UserRepository userRepository;
+    private final WeeklyChallengeRepository challengeRepository;
+    private final TransactionRepository transactionRepository;
+
+    public FriendGroupServiceImpl(UserRepository userRepository, WeeklyChallengeRepository challengeRepository, TransactionRepository transactionRepository) {
+        this.userRepository = userRepository;
+        this.challengeRepository = challengeRepository;
+        this.transactionRepository = transactionRepository;
+    }
+
+    @Override
+    public void endWeeklyChallenge(Long groupId, LocalDateTime referenceTime) {
+        List<User> users = userRepository.findByFriendGroupId(groupId);
+                LocalDateTime challengeEnd = referenceTime.minusDays(1)
+                .withHour(23).withMinute(59).withSecond(59).withNano(0);
+        LocalDateTime challengeStart = challengeEnd.minusDays(6)
+                .withHour(0).withMinute(0).withSecond(0).withNano(0);
+        WeeklyChallenge challenge = challengeRepository.findByStartDateBeforeAndEndDateAfter(challengeStart,challengeEnd).get();
+        List<Transaction> transactions = transactionRepository.findAllByUserFriendGroupIdAndTimestampBetween(groupId, challengeStart, challengeEnd);
+
+        Map<Long, Double> userSpending = transactions.stream()
+                .collect(Collectors.groupingBy(
+                        t -> t.getUser().getId(),
+                        Collectors.summingDouble(Transaction::getAmount)
+                ));
+
+        List<Long> rankedUsers = userSpending.entrySet().stream()
+                .sorted(Map.Entry.comparingByValue())
+                .map(u -> u.getKey())
+                .collect(Collectors.toList());
+
+        int[] pointDistribution = {100, 50, 25, 12, 6, 3, 1, 0};
+        for (int i = 0; i < rankedUsers.size(); i++) {
+            Long userId = rankedUsers.get(i);
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new RuntimeException("User lost during processing"));
+
+            if (i == 0) user.setGoldMedel(user.getGoldMedel() + 1);
+            if (i == 1) user.setSilverMedel(user.getSilverMedel() + 1);
+            if (i == 2) user.setBronzeMedel(user.getBronzeMedel() + 1);
+
+
+            int pointsToGain = (i < pointDistribution.length) ? pointDistribution[i] : 0;
+            user.setTotalPoints(user.getTotalPoints() + pointsToGain);
+
+            userRepository.save(user);
+        }
+
+        challengeService.createChallenge();
+    }
+}
