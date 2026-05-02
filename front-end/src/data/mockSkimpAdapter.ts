@@ -7,6 +7,7 @@ import {
   weeklyChallenges,
   weeklyResults,
 } from './mockSeed';
+import { MOCK_ACTIVE_CHALLENGE_ID } from './mockDemoWeeklyChallenges';
 import type {
   ActivityFeedItem,
   DailyBreakdown,
@@ -24,7 +25,7 @@ import type {
 
 export const MOCK_CURRENT_USER_ID = 'user-connor';
 export const MOCK_CURRENT_GROUP_ID = 'group-skimp-squad';
-export const MOCK_CURRENT_CHALLENGE_ID = 'challenge-current';
+export const MOCK_CURRENT_CHALLENGE_ID = MOCK_ACTIVE_CHALLENGE_ID;
 
 const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -211,7 +212,8 @@ const buildDailyBreakdown = (groupId: string, challengeId: string): DailyBreakdo
 };
 
 const buildRecapFromCurrentShape = (shell: (typeof recapShells)[number]): WeeklyRecap => {
-  const currentLeaderboard = buildLeaderboard(MOCK_CURRENT_GROUP_ID, MOCK_CURRENT_CHALLENGE_ID);
+  const challengeId = shell.challengeId;
+  const currentLeaderboard = buildLeaderboard(MOCK_CURRENT_GROUP_ID, challengeId);
   const shiftedLeaderboard = currentLeaderboard.map((row, index) => ({
     ...row,
     weeklyBadSpend: money(Math.max(18.2, row.weeklyBadSpend - 11 + index * 2.75)),
@@ -222,8 +224,8 @@ const buildRecapFromCurrentShape = (shell: (typeof recapShells)[number]): Weekly
   return {
     ...shell,
     finalLeaderboard: shiftedLeaderboard,
-    graph: buildGraph(MOCK_CURRENT_GROUP_ID, MOCK_CURRENT_CHALLENGE_ID),
-    dailyBreakdown: buildDailyBreakdown(MOCK_CURRENT_GROUP_ID, MOCK_CURRENT_CHALLENGE_ID),
+    graph: buildGraph(MOCK_CURRENT_GROUP_ID, challengeId),
+    dailyBreakdown: buildDailyBreakdown(MOCK_CURRENT_GROUP_ID, challengeId),
   };
 };
 
