@@ -88,3 +88,26 @@ export function toLocalYmd(d: Date): string {
   const day = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
 }
+
+function startOfDay(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+/** Calendar week containing `now` in the demo grid (Memories), if any. */
+export function getCurrentMemoriesWeekPointer(
+  now: Date = new Date(),
+): { monthIndex: number; weekIndex: number; week: MonthWeek; yearLabel: string } | null {
+  for (let mi = 0; mi < MEMORIES_MONTHS.length; mi++) {
+    const month = MEMORIES_MONTHS[mi];
+    for (let wi = 0; wi < month.weeks.length; wi++) {
+      const week = month.weeks[wi];
+      const day = startOfDay(now).getTime();
+      const start = startOfDay(week.start).getTime();
+      const end = startOfDay(week.end).getTime();
+      if (day >= start && day <= end) {
+        return { monthIndex: mi, weekIndex: wi, week, yearLabel: month.year };
+      }
+    }
+  }
+  return null;
+}

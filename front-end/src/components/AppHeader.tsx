@@ -1,25 +1,38 @@
-import { Bell, X } from 'lucide-react-native';
+import { Bell, Gift, X } from 'lucide-react-native';
 import { useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { colors, fonts, spacing } from '../theme';
+import { GiftLessonModal } from './GiftLessonModal';
 import { Logo } from './Logo';
 
 export function AppHeader() {
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showGift, setShowGift] = useState(false);
 
   return (
     <View style={styles.header}>
       <Logo width={92} height={38} />
-      <Pressable
-        accessibilityLabel="Notifications"
-        accessibilityRole="button"
-        onPress={() => setShowNotifications(true)}
-        style={styles.iconButton}
-      >
-        <Bell color={colors.text} size={21} strokeWidth={2.4} />
-        <View style={styles.notificationDot} />
-      </Pressable>
+      <View style={styles.actionsRow}>
+        <Pressable
+          accessibilityLabel="Daily finance lesson"
+          accessibilityRole="button"
+          onPress={() => setShowGift(true)}
+          style={styles.iconButton}
+        >
+          <Gift color={colors.text} size={21} strokeWidth={2.4} />
+          <View style={styles.giftDot} />
+        </Pressable>
+        <Pressable
+          accessibilityLabel="Notifications"
+          accessibilityRole="button"
+          onPress={() => setShowNotifications(true)}
+          style={styles.iconButton}
+        >
+          <Bell color={colors.text} size={21} strokeWidth={2.4} />
+          <View style={styles.notificationDot} />
+        </Pressable>
+      </View>
 
       <Modal animationType="fade" transparent visible={showNotifications} onRequestClose={() => setShowNotifications(false)}>
         <Pressable style={styles.modalBackdrop} onPress={() => setShowNotifications(false)}>
@@ -40,6 +53,8 @@ export function AppHeader() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      <GiftLessonModal visible={showGift} onClose={() => setShowGift(false)} />
     </View>
   );
 }
@@ -50,6 +65,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingTop: spacing.sm,
+  },
+  actionsRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.sm,
   },
   iconButton: {
     alignItems: 'center',
@@ -64,6 +84,17 @@ const styles = StyleSheet.create({
   },
   notificationDot: {
     backgroundColor: colors.coral,
+    borderColor: colors.surface,
+    borderRadius: 999,
+    borderWidth: 2,
+    height: 10,
+    position: 'absolute',
+    right: 8,
+    top: 8,
+    width: 10,
+  },
+  giftDot: {
+    backgroundColor: colors.mintStrong,
     borderColor: colors.surface,
     borderRadius: 999,
     borderWidth: 2,

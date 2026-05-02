@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Animated, NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { ActivityFeedItem } from '../components/ActivityFeedItem';
 import { AppHeader } from '../components/AppHeader';
@@ -7,6 +7,7 @@ import { Card } from '../components/Card';
 import { LeaderboardRow } from '../components/LeaderboardRow';
 import { ServerUnavailable } from '../components/ServerUnavailable';
 import { SpendingGraphCard } from '../components/SpendingGraphCard';
+import { getWeeklyChallengeHomeDisplay } from '../data/weeklyChallengeDisplay';
 import type { HomeDashboard, SkimpDataAdapter } from '../data/types';
 import { colors, fonts, spacing } from '../theme';
 
@@ -21,6 +22,7 @@ export function HomeScreen({ adapter, currentUserId }: HomeScreenProps) {
   const [simulating, setSimulating] = useState(false);
   const [carouselScrollEnabled, setCarouselScrollEnabled] = useState(true);
   const carouselScrollX = useRef(new Animated.Value(0)).current;
+  const carouselRef = useRef<ScrollView | null>(null);
   const { width } = useWindowDimensions();
 
   useEffect(() => {
@@ -79,29 +81,84 @@ export function HomeScreen({ adapter, currentUserId }: HomeScreenProps) {
   }
 
   const maxSpend = Math.max(...dashboard.leaderboard.map((row) => row.weeklyBadSpend));
-  const carouselCardWidth = Math.min(width - spacing.lg * 2, 420);
+  const carouselSideInset = spacing.lg;
+  const carouselPeek = 26;
+  const carouselGap = spacing.md;
+  /** One slide width: left gutter (`carouselSideInset`) + card + peek of neighbour = viewport width */
+  const carouselCardWidth = width - carouselSideInset - carouselPeek;
+  const carouselSnapStride = carouselSideInset + carouselCardWidth + carouselGap - carouselPeek;
+  const challengeCopy = getWeeklyChallengeHomeDisplay(dashboard.challenge);
+
+  const snapCarouselToNearest = (offsetX: number, animated = true) => {
+    const target = offsetX <= carouselSnapStride / 2 ? 0 : carouselSnapStride;
+    const distance = Math.abs(offsetX - target);
+    /** Avoid tiny jittery scroll corrections when we're already snapped. */
+    if (distance < 2.5) {
+      return;
+    }
+    carouselRef.current?.scrollTo({ x: target, animated });
+  };
+
+  const onCarouselMomentumScrollEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    snapCarouselToNearest(event.nativeEvent.contentOffset.x, true);
+  };
+
+  /** When the user lifts a finger without much fling inertia, RN may not momentum-scroll — snap immediately. */
+  const onCarouselScrollEndDrag = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const vx = event.nativeEvent.velocity?.x ?? 0;
+    if (Math.abs(vx) >= 0.28) {
+      return;
+    }
+    snapCarouselToNearest(event.nativeEvent.contentOffset.x, true);
+  };
 
   return (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} style={styles.scroll}>
       <AppHeader />
+
+      <View
+        accessibilityLabel={`This week's challenge: ${challengeCopy.title}. ${challengeCopy.description} ${challengeCopy.metaLine}`}
+        accessible
+        style={styles.weeklyChallengeSection}
+      >
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>This week&apos;s challenge</Text>
+        </View>
+        <Text style={styles.challengeTitleLine}>{challengeCopy.title}</Text>
+        <Text style={styles.challengeBodyLine}>{challengeCopy.description}</Text>
+        {challengeCopy.metaTinted ? (
+          <View style={styles.challengeMetaRow}>
+            <Text style={styles.challengeMetaDate}>{challengeCopy.metaTinted.datePart}</Text>
+            <Text style={styles.challengeMetaSep}>·</Text>
+            <Text style={styles.challengeMetaCategory}>{challengeCopy.metaTinted.category}</Text>
+            <Text style={styles.challengeMetaSep}>·</Text>
+            <Text style={styles.challengeMetaPoints}>+{challengeCopy.metaTinted.points} points</Text>
+          </View>
+        ) : (
+          <Text style={styles.challengeMetaLine}>{challengeCopy.metaLine}</Text>
+        )}
+      </View>
 
       <Pressable accessibilityRole="button" disabled={simulating} onPress={simulateTransaction} style={({ pressed }) => [styles.simulateButton, pressed && styles.pressed, simulating && styles.disabled]}>
         <Text style={styles.simulateText}>{simulating ? 'Simulating...' : 'Simulate Transaction'}</Text>
       </Pressable>
 
       <Animated.ScrollView
+        ref={carouselRef}
+        contentContainerStyle={[styles.carouselContent, { paddingHorizontal: carouselSideInset }]}
         decelerationRate="fast"
+        directionalLockEnabled
         horizontal
-        pagingEnabled
         scrollEnabled={carouselScrollEnabled}
         showsHorizontalScrollIndicator={false}
-        snapToInterval={carouselCardWidth + spacing.md}
         scrollEventThrottle={16}
         style={styles.carousel}
+        onMomentumScrollEnd={onCarouselMomentumScrollEnd}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { x: carouselScrollX } } }],
           { useNativeDriver: true },
         )}
+        onScrollEndDrag={onCarouselScrollEndDrag}
       >
         <View style={[styles.carouselCard, { width: carouselCardWidth }]}>
           <Card style={styles.carouselInnerCard}>
@@ -136,7 +193,7 @@ export function HomeScreen({ adapter, currentUserId }: HomeScreenProps) {
                 transform: [
                   {
                     translateX: carouselScrollX.interpolate({
-                      inputRange: [0, carouselCardWidth + spacing.md],
+                      inputRange: [0, carouselSnapStride],
                       outputRange: [0, 15],
                       extrapolate: 'clamp',
                     }),
@@ -186,7 +243,10 @@ const styles = StyleSheet.create({
   },
   carousel: {
     marginHorizontal: -spacing.lg,
-    paddingHorizontal: spacing.lg,
+  },
+  carouselContent: {
+    alignItems: 'stretch',
+    flexGrow: 1,
   },
   carouselCard: {
     marginRight: spacing.md,
@@ -255,5 +315,69 @@ const styles = StyleSheet.create({
   },
   disabled: {
     opacity: 0.55,
+  },
+  weeklyChallengeSection: {
+    backgroundColor: colors.mint,
+    borderColor: colors.green,
+    borderLeftWidth: 4,
+    borderRadius: 16,
+    borderWidth: 1,
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
+  },
+  /** Matches `LeaderboardRow` name line (15 / bodySemi / textSoft). */
+  challengeTitleLine: {
+    color: colors.textSoft,
+    fontFamily: fonts.bodySemi,
+    fontSize: 15,
+    lineHeight: 20,
+  },
+  /** Secondary body under leaderboard title rows. */
+  challengeBodyLine: {
+    color: colors.textSoft,
+    fontFamily: fonts.body,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  /** Matches `LeaderboardRow` amount line (14 / bodySemi / text). */
+  challengeMetaLine: {
+    color: colors.text,
+    fontFamily: fonts.bodySemi,
+    fontSize: 14,
+    lineHeight: 18,
+  },
+  /** Memories-style meta row: muted date, green category, mint accent for points. */
+  challengeMetaRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+    marginTop: 2,
+  },
+  challengeMetaDate: {
+    color: colors.textSoft,
+    fontFamily: fonts.body,
+    fontSize: 14,
+    lineHeight: 18,
+  },
+  challengeMetaSep: {
+    color: colors.textSoft,
+    fontFamily: fonts.body,
+    fontSize: 14,
+    lineHeight: 18,
+  },
+  challengeMetaCategory: {
+    color: colors.green,
+    fontFamily: fonts.bodySemi,
+    fontSize: 14,
+    lineHeight: 18,
+    textTransform: 'capitalize',
+  },
+  challengeMetaPoints: {
+    color: colors.mintStrong,
+    fontFamily: fonts.bodySemi,
+    fontSize: 14,
+    lineHeight: 18,
   },
 });

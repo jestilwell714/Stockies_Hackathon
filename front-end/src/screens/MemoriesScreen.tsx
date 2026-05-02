@@ -6,7 +6,7 @@ import { Logo } from '../components/Logo';
 import { ServerUnavailable } from '../components/ServerUnavailable';
 import { weeklyStoryMock } from '../data/weeklyStoryMockData';
 import type { SkimpDataAdapter, WeeklyRecap } from '../data/types';
-import { getDemoChallengeForMemoriesWeek } from '../data/mockDemoWeeklyChallenges';
+import { challengeRewardPoints, getDemoChallengeForMemoriesWeek } from '../data/mockDemoWeeklyChallenges';
 import { MEMORIES_MONTHS, memoriesWeekFlatIndex, type MonthWeek } from '../data/memoriesCalendar';
 import { buildRecapByWeekKey, getRecapForCalendarWeek, getViewerWeekOutcome } from '../data/memoriesWeekOutcome';
 import { WeeklyStoryRecapScreen } from './WeeklyStoryRecapScreen';
@@ -315,7 +315,9 @@ export function MemoriesScreen({ adapter, groupId, currentUserId, onBack }: Memo
                       <Text style={styles.demoChallengeMetaSep}>·</Text>
                       <Text style={styles.demoChallengeDifficulty}>Lvl {demo.difficulty}</Text>
                       <Text style={styles.demoChallengeMetaSep}>·</Text>
-                      <Text style={styles.demoChallengeXp}>+{demo.xp} XP</Text>
+                      <Text style={styles.demoChallengePoints}>
+                        +{challengeRewardPoints(demo.difficulty)} points
+                      </Text>
                       {recapAvailable ? (
                         <>
                           <Text style={styles.demoChallengeMetaSep}>·</Text>
@@ -590,7 +592,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodyMedium,
     fontSize: 11,
   },
-  demoChallengeXp: {
+  demoChallengePoints: {
     color: colors.text,
     fontFamily: fonts.bodySemi,
     fontSize: 11,

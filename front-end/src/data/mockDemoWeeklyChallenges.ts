@@ -1,12 +1,21 @@
 import { memoriesWeekFlatIndex, MEMORIES_MONTHS } from './memoriesCalendar';
 
+/** Points earned for completing a weekly challenge, by difficulty level (1–3). */
+export const CHALLENGE_POINTS_BY_LEVEL = { 1: 10, 2: 25, 3: 50 } as const;
+
+export function challengeRewardPoints(difficulty: number): number {
+  if (difficulty === 1) return CHALLENGE_POINTS_BY_LEVEL[1];
+  if (difficulty === 2) return CHALLENGE_POINTS_BY_LEVEL[2];
+  if (difficulty === 3) return CHALLENGE_POINTS_BY_LEVEL[3];
+  return CHALLENGE_POINTS_BY_LEVEL[1];
+}
+
 export type DemoWeeklyChallengeSpec = {
   id: number;
   title: string;
   description: string;
   category: string;
   difficulty: number;
-  xp: number;
 };
 
 /** One demo challenge per week in `MEMORIES_MONTHS` (20 weeks). */
@@ -17,7 +26,6 @@ export const DEMO_WEEKLY_CHALLENGES: DemoWeeklyChallengeSpec[] = [
     description: 'Avoid all non-essential spending from Friday evening to Sunday night.',
     category: 'challenge',
     difficulty: 2,
-    xp: 500,
   },
   {
     id: 2,
@@ -25,7 +33,6 @@ export const DEMO_WEEKLY_CHALLENGES: DemoWeeklyChallengeSpec[] = [
     description: 'Review your recurring charges and cancel at least one you no longer use.',
     category: 'tracking',
     difficulty: 1,
-    xp: 300,
   },
   {
     id: 3,
@@ -33,7 +40,6 @@ export const DEMO_WEEKLY_CHALLENGES: DemoWeeklyChallengeSpec[] = [
     description: 'Bring food from home instead of buying lunch for the full work week.',
     category: 'savings',
     difficulty: 2,
-    xp: 400,
   },
   {
     id: 4,
@@ -41,7 +47,6 @@ export const DEMO_WEEKLY_CHALLENGES: DemoWeeklyChallengeSpec[] = [
     description: 'Record every single transaction you make this week, no matter how small.',
     category: 'tracking',
     difficulty: 1,
-    xp: 250,
   },
   {
     id: 5,
@@ -49,7 +54,6 @@ export const DEMO_WEEKLY_CHALLENGES: DemoWeeklyChallengeSpec[] = [
     description: 'Transfer at least $20 into your savings account before the week ends.',
     category: 'savings',
     difficulty: 1,
-    xp: 300,
   },
   {
     id: 6,
@@ -57,7 +61,6 @@ export const DEMO_WEEKLY_CHALLENGES: DemoWeeklyChallengeSpec[] = [
     description: 'Avoid restaurants, takeaways and food delivery apps for 7 days straight.',
     category: 'challenge',
     difficulty: 3,
-    xp: 600,
   },
   {
     id: 7,
@@ -65,7 +68,6 @@ export const DEMO_WEEKLY_CHALLENGES: DemoWeeklyChallengeSpec[] = [
     description: 'Decide on a realistic discretionary budget for the week and stick to it.',
     category: 'tracking',
     difficulty: 2,
-    xp: 350,
   },
   {
     id: 8,
@@ -73,7 +75,6 @@ export const DEMO_WEEKLY_CHALLENGES: DemoWeeklyChallengeSpec[] = [
     description: 'Make coffee at home every morning this week instead of buying it out.',
     category: 'challenge',
     difficulty: 2,
-    xp: 350,
   },
   {
     id: 9,
@@ -81,7 +82,6 @@ export const DEMO_WEEKLY_CHALLENGES: DemoWeeklyChallengeSpec[] = [
     description: 'List one unused item online and put whatever you earn straight into savings.',
     category: 'savings',
     difficulty: 2,
-    xp: 450,
   },
   {
     id: 10,
@@ -89,7 +89,6 @@ export const DEMO_WEEKLY_CHALLENGES: DemoWeeklyChallengeSpec[] = [
     description: 'Define one specific financial goal with a target amount and deadline.',
     category: 'mindset',
     difficulty: 1,
-    xp: 200,
   },
   {
     id: 11,
@@ -97,7 +96,6 @@ export const DEMO_WEEKLY_CHALLENGES: DemoWeeklyChallengeSpec[] = [
     description: 'Leave your card at home and only spend the physical cash you take out.',
     category: 'challenge',
     difficulty: 3,
-    xp: 550,
   },
   {
     id: 12,
@@ -105,7 +103,6 @@ export const DEMO_WEEKLY_CHALLENGES: DemoWeeklyChallengeSpec[] = [
     description: 'Open your banking app every morning and note your balance before spending anything.',
     category: 'mindset',
     difficulty: 1,
-    xp: 200,
   },
   {
     id: 13,
@@ -113,7 +110,6 @@ export const DEMO_WEEKLY_CHALLENGES: DemoWeeklyChallengeSpec[] = [
     description: 'Plan your meals around what you already have before buying any groceries.',
     category: 'savings',
     difficulty: 2,
-    xp: 400,
   },
   {
     id: 14,
@@ -121,7 +117,6 @@ export const DEMO_WEEKLY_CHALLENGES: DemoWeeklyChallengeSpec[] = [
     description: 'Get a friend or family member to take on the same challenge alongside you this week.',
     category: 'social',
     difficulty: 1,
-    xp: 300,
   },
   {
     id: 15,
@@ -129,7 +124,6 @@ export const DEMO_WEEKLY_CHALLENGES: DemoWeeklyChallengeSpec[] = [
     description: 'Pick one regular expense (coffee, gym, streaming) and find a cheaper or free substitute.',
     category: 'savings',
     difficulty: 2,
-    xp: 400,
   },
   {
     id: 16,
@@ -137,7 +131,6 @@ export const DEMO_WEEKLY_CHALLENGES: DemoWeeklyChallengeSpec[] = [
     description: "Look back at your transactions from last month and identify your biggest unnecessary expense.",
     category: 'tracking',
     difficulty: 1,
-    xp: 250,
   },
   {
     id: 17,
@@ -145,7 +138,6 @@ export const DEMO_WEEKLY_CHALLENGES: DemoWeeklyChallengeSpec[] = [
     description: 'Manually round up each purchase to the nearest dollar and move the difference to savings.',
     category: 'savings',
     difficulty: 1,
-    xp: 300,
   },
   {
     id: 18,
@@ -153,7 +145,6 @@ export const DEMO_WEEKLY_CHALLENGES: DemoWeeklyChallengeSpec[] = [
     description: 'Any non-essential item you want to buy this week must wait 48 hours before you purchase it.',
     category: 'mindset',
     difficulty: 2,
-    xp: 400,
   },
   {
     id: 19,
@@ -161,7 +152,6 @@ export const DEMO_WEEKLY_CHALLENGES: DemoWeeklyChallengeSpec[] = [
     description: "Post your savings total or a challenge update in the app's community feed this week.",
     category: 'social',
     difficulty: 1,
-    xp: 250,
   },
   {
     id: 20,
@@ -169,7 +159,6 @@ export const DEMO_WEEKLY_CHALLENGES: DemoWeeklyChallengeSpec[] = [
     description: 'At the end of each day, set aside any coins or leftover small amounts into a savings jar or account.',
     category: 'savings',
     difficulty: 1,
-    xp: 200,
   },
 ];
 

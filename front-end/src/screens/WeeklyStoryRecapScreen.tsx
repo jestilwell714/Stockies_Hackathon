@@ -316,14 +316,14 @@ function renderSlide(i: number, d: WeeklyStoryMock, width: number) {
     case 9:
       return (
         <View style={styles.centerBlock}>
-          <Text style={styles.kicker}>Rewards</Text>
-          <Text style={styles.statBig}>+{d.rewards.xpGainedThisWeek} XP</Text>
+          <Text style={styles.kicker}>Points</Text>
+          <Text style={styles.statBig}>+{d.rewards.pointsGainedThisWeek} points</Text>
           <Text style={styles.body}>this week</Text>
           <View style={styles.levelRow}>
             <Text style={styles.levelBadge}>Lv {d.rewards.level}</Text>
             <Text style={styles.levelTitle}>{d.rewards.levelTitle}</Text>
           </View>
-          <Text style={styles.finePrint}>{d.rewards.totalXp.toLocaleString()} XP lifetime</Text>
+          <Text style={styles.finePrint}>{d.rewards.totalPoints.toLocaleString()} points lifetime</Text>
           <View style={styles.badgeRow}>
             {d.rewards.badgesEarned.map((b) => (
               <View key={b} style={styles.badgeChip}>

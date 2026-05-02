@@ -40,8 +40,8 @@ export type WeeklyStoryMock = {
     recommendedLesson: string;
   };
   rewards: {
-    xpGainedThisWeek: number;
-    totalXp: number;
+    pointsGainedThisWeek: number;
+    totalPoints: number;
     level: number;
     levelTitle: string;
     badgesEarned: string[];
@@ -99,8 +99,8 @@ export const weeklyStoryMock: WeeklyStoryMock = {
     recommendedLesson: 'Try the 24-hour wishlist for food delivery.',
   },
   rewards: {
-    xpGainedThisWeek: 140,
-    totalXp: 2840,
+    pointsGainedThisWeek: 25,
+    totalPoints: 2840,
     level: 8,
     levelTitle: 'Receipt Hoarder',
     badgesEarned: ['Main character at checkout', 'Push notification victim'],
