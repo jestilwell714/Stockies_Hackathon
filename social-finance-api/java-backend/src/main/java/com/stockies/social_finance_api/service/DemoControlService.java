@@ -12,6 +12,7 @@ import jakarta.persistence.EntityManager;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -53,14 +54,14 @@ public class DemoControlService {
                 .silverMedel(0)
                 .bronzeMedel(0)
                 .build();
-        userRepository.save(user);
+        userRepository.saveAndFlush(user);
 
         FriendGroup group = groupWithSpace();
         if (group == null) {
             group = createDemoGroup(user);
         }
         user.setFriendGroup(group);
-        userRepository.save(user);
+        userRepository.saveAndFlush(user);
 
         FriendGroup assignedGroup = group;
         LocalDateTime now = LocalDateTime.now();
@@ -114,16 +115,23 @@ public class DemoControlService {
 
     @Transactional
     public Map<String, Object> resetLiveWeek(UUID groupId) {
+        return resetLiveWeek(groupId, null);
+    }
+
+    @Transactional
+    public Map<String, Object> resetLiveWeek(UUID groupId, LocalDate startDate) {
         FriendGroup group = findGroup(groupId);
         LocalDateTime now = LocalDateTime.now();
+        LocalDateTime challengeStart = startDate == null ? now.minusSeconds(1) : startDate.atStartOfDay();
+        LocalDateTime challengeEnd = challengeStart.plusDays(6).withHour(23).withMinute(59).withSecond(59);
         WeeklyChallenge challenge = challengeRepository
                 .findByFriendGroupIdAndStartDateBeforeAndEndDateAfter(group.getId(), now, now)
                 .or(() -> challengeRepository.findTopByFriendGroupIdOrderByStartDateDesc(group.getId()))
                 .orElseGet(() -> createChallenge(group, DemoDataSeeder.DEMO_CHALLENGE_ID, now));
 
         deleteTransactions(challenge.getId());
-        challenge.setStartDate(now.minusSeconds(1));
-        challenge.setEndDate(now.plusDays(6).withHour(23).withMinute(59).withSecond(59));
+        challenge.setStartDate(challengeStart);
+        challenge.setEndDate(challengeEnd);
 
         return response("reset", group, challenge);
     }
@@ -178,7 +186,7 @@ public class DemoControlService {
                 .creator(creator)
                 .bannedCategories(Set.of("eating_out", "subscriptions", "entertainment", "clothing"))
                 .build();
-        return groupRepository.save(group);
+        return groupRepository.saveAndFlush(group);
     }
 
     private String uniqueUsername(String displayName) {

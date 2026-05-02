@@ -3,6 +3,7 @@ package com.stockies.social_finance_api.controller;
 import com.stockies.social_finance_api.dto.DemoJoinRequest;
 import com.stockies.social_finance_api.dto.DemoJoinResponse;
 import com.stockies.social_finance_api.service.DemoControlService;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -11,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDate;
 import java.util.Map;
 import java.util.List;
 import java.util.UUID;
@@ -37,9 +39,10 @@ public class DemoControlController {
 
     @PostMapping("/reset-live-week")
     public Map<String, Object> resetLiveWeek(
-            @RequestParam(defaultValue = "00000000-0000-0000-0000-000000000100") UUID groupId
+            @RequestParam(defaultValue = "00000000-0000-0000-0000-000000000100") UUID groupId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate
     ) {
-        return demoControlService.resetLiveWeek(groupId);
+        return demoControlService.resetLiveWeek(groupId, startDate);
     }
 
     @PostMapping("/roll-week")

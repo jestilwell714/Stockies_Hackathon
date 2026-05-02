@@ -103,11 +103,13 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   if (!response.ok) {
+    const body = await response.text().catch(() => '');
     const apiError = new Error(`Server Unavaliable: ${response.status}`) as SkimpApiError;
     apiError.debug = {
       ...debug,
       status: response.status,
       statusText: response.statusText,
+      causeMessage: body.slice(0, 500),
     };
     throw apiError;
   }

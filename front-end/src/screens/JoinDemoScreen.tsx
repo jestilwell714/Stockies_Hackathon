@@ -8,9 +8,10 @@ import { colors, fonts, radius, shadow, spacing } from '../theme';
 type JoinDemoScreenProps = {
   adapter: SkimpDataAdapter;
   onJoin(session: DemoSession): void;
+  onResetSession?: () => void;
 };
 
-export function JoinDemoScreen({ adapter, onJoin }: JoinDemoScreenProps) {
+export function JoinDemoScreen({ adapter, onJoin, onResetSession }: JoinDemoScreenProps) {
   const [displayName, setDisplayName] = useState('');
   const [joining, setJoining] = useState(false);
   const [serverError, setServerError] = useState<unknown>();
@@ -34,7 +35,7 @@ export function JoinDemoScreen({ adapter, onJoin }: JoinDemoScreenProps) {
   };
 
   if (serverError) {
-    return <ServerUnavailable error={serverError} />;
+    return <ServerUnavailable error={serverError} onResetSession={onResetSession} />;
   }
 
   return (

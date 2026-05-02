@@ -12,7 +12,7 @@ Existing Expo frontend, Java Spring backend, Python classifier, and Supabase Pos
 6. Java sends each transaction to the Python classifier.
 7. Java saves the categorized transaction to Supabase Postgres.
 8. The frontend polls the Java backend and refreshes the live feed, weekly graph, and leaderboard.
-9. Near the end, the script rolls every demo team into a new week and sends a few more transactions.
+9. At the end, the script rolls every demo team into a new week so the completed week appears in Weekly Memories.
 
 If the Java backend is down, the app shows **Server Unavaliable** and does not fall back to mock data.
 
@@ -146,7 +146,7 @@ API_BASE_URL=http://localhost:8080 ./scripts/run-demo-week.sh
 
 Before running the script, have participants open the Expo app and enter their name. The backend assigns new participants into `Demo Team 1`, `Demo Team 2`, and so on, with up to 8 people per team.
 
-The script discovers all joined users through `GET /api/demo/participants`, resets every live demo team, sends demo transactions every few seconds across those users, rolls every team into a new week, then sends a final burst of transactions. Keep the Expo app open on the home or leaderboard tab to see each team's live feed and leaderboard change while it runs.
+The script discovers all joined users through `GET /api/demo/participants`, resets every live demo team to Sunday, sends dated transactions for Sunday through Saturday over about two minutes, then rolls every team into a new week. Keep the Expo app open on the home or leaderboard tab while it runs, then open **Profile -> Weekly Memories** to show the completed recap.
 
 ## Expo Frontend
 

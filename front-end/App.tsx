@@ -76,11 +76,17 @@ export default function App() {
     setSession(nextSession);
   };
 
+  const resetSession = async () => {
+    await AsyncStorage.removeItem(DEMO_SESSION_KEY);
+    setActiveTab('home');
+    setSession(undefined);
+  };
+
   if (!session) {
     return (
       <View style={styles.root}>
         <StatusBar style="dark" />
-        <JoinDemoScreen adapter={adapter} onJoin={joinDemo} />
+        <JoinDemoScreen adapter={adapter} onJoin={joinDemo} onResetSession={resetSession} />
       </View>
     );
   }
@@ -92,7 +98,7 @@ export default function App() {
         <Animated.View style={[styles.screen, { transform: [{ translateX: slide }] }]}>
           <View style={[styles.screen, activeTab === 'memories' && styles.hiddenScreen]}>
             <View style={[styles.screen, activeTab !== 'home' && styles.hiddenScreen]}>
-              <HomeScreen adapter={adapter} currentUserId={session.userId} />
+              <HomeScreen adapter={adapter} currentUserId={session.userId} onResetSession={resetSession} />
             </View>
             <View style={[styles.screen, activeTab !== 'leaderboard' && styles.hiddenScreen]}>
               <LeaderboardScreen
@@ -100,6 +106,7 @@ export default function App() {
                 challengeId={session.challengeId}
                 currentUserId={session.userId}
                 groupId={session.groupId}
+                onResetSession={resetSession}
               />
             </View>
             <View style={[styles.screen, activeTab !== 'profile' && styles.hiddenScreen]}>
@@ -109,6 +116,7 @@ export default function App() {
                 currentUserId={session.userId}
                 groupId={session.groupId}
                 onOpenMemories={() => setActiveTab('memories')}
+                onResetSession={resetSession}
               />
             </View>
           </View>
@@ -118,6 +126,7 @@ export default function App() {
               currentUserId={session.userId}
               groupId={session.groupId}
               onBack={() => setActiveTab('profile')}
+              onResetSession={resetSession}
             />
           ) : null}
         </Animated.View>

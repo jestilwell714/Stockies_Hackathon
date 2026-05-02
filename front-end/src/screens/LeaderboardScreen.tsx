@@ -13,6 +13,7 @@ type LeaderboardScreenProps = {
   groupId: string;
   challengeId: string;
   currentUserId: string;
+  onResetSession?: () => void;
 };
 
 const medalImages = {
@@ -21,7 +22,7 @@ const medalImages = {
   bronze: require('../../Bronze Medal.png'),
 };
 
-export function LeaderboardScreen({ adapter, groupId, currentUserId }: LeaderboardScreenProps) {
+export function LeaderboardScreen({ adapter, groupId, currentUserId, onResetSession }: LeaderboardScreenProps) {
   const [leaderboard, setLeaderboard] = useState<PointsLeaderboardRow[]>();
   const [serverError, setServerError] = useState<unknown>();
 
@@ -35,7 +36,7 @@ export function LeaderboardScreen({ adapter, groupId, currentUserId }: Leaderboa
   }, [adapter, groupId]);
 
   if (serverError) {
-    return <ServerUnavailable error={serverError} />;
+    return <ServerUnavailable error={serverError} onResetSession={onResetSession} />;
   }
 
   if (!leaderboard) {

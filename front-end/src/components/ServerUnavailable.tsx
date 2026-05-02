@@ -1,13 +1,14 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { SkimpApiError } from '../data/types';
 import { colors, fonts, spacing } from '../theme';
 
 type ServerUnavailableProps = {
   error?: unknown;
+  onResetSession?: () => void;
 };
 
-export function ServerUnavailable({ error }: ServerUnavailableProps) {
+export function ServerUnavailable({ error, onResetSession }: ServerUnavailableProps) {
   const debug = (error as SkimpApiError | undefined)?.debug;
   const message = error instanceof Error ? error.message : undefined;
 
@@ -27,6 +28,11 @@ export function ServerUnavailable({ error }: ServerUnavailableProps) {
         </View>
       ) : message ? (
         <Text style={styles.debugText}>{message}</Text>
+      ) : null}
+      {onResetSession ? (
+        <Pressable accessibilityRole="button" onPress={onResetSession} style={({ pressed }) => [styles.resetButton, pressed && styles.pressed]}>
+          <Text style={styles.resetText}>Clear saved user and rejoin</Text>
+        </Pressable>
       ) : null}
     </View>
   );
@@ -67,5 +73,22 @@ const styles = StyleSheet.create({
     color: colors.textSoft,
     fontFamily: fonts.body,
     fontSize: 11,
+  },
+  resetButton: {
+    alignItems: 'center',
+    backgroundColor: colors.green,
+    borderRadius: 12,
+    marginTop: spacing.md,
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
+  },
+  resetText: {
+    color: colors.surface,
+    fontFamily: fonts.bodySemi,
+    fontSize: 14,
+  },
+  pressed: {
+    opacity: 0.75,
   },
 });

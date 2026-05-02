@@ -24,9 +24,10 @@ type MemoriesScreenProps = {
   groupId: string;
   currentUserId: string;
   onBack: () => void;
+  onResetSession?: () => void;
 };
 
-export function MemoriesScreen({ adapter, groupId, onBack }: MemoriesScreenProps) {
+export function MemoriesScreen({ adapter, groupId, onBack, onResetSession }: MemoriesScreenProps) {
   const [recaps, setRecaps] = useState<WeeklyRecap[]>();
   const [serverError, setServerError] = useState<unknown>();
   const [activeMonth, setActiveMonth] = useState(months.length - 1);
@@ -62,7 +63,7 @@ export function MemoriesScreen({ adapter, groupId, onBack }: MemoriesScreenProps
   }, [activeMonth, contentAnim]);
 
   if (serverError) {
-    return <ServerUnavailable error={serverError} />;
+    return <ServerUnavailable error={serverError} onResetSession={onResetSession} />;
   }
 
   if (!recaps) {

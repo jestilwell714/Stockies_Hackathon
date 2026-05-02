@@ -1,5 +1,6 @@
+import { Expand, X } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Animated, Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { ActivityFeedItem } from '../components/ActivityFeedItem';
 import { AppHeader } from '../components/AppHeader';
@@ -13,11 +14,13 @@ import { colors, fonts, spacing } from '../theme';
 type HomeScreenProps = {
   adapter: SkimpDataAdapter;
   currentUserId: string;
+  onResetSession?: () => void;
 };
 
-export function HomeScreen({ adapter, currentUserId }: HomeScreenProps) {
+export function HomeScreen({ adapter, currentUserId, onResetSession }: HomeScreenProps) {
   const [dashboard, setDashboard] = useState<HomeDashboard>();
   const [serverError, setServerError] = useState<unknown>();
+  const [feedModalOpen, setFeedModalOpen] = useState(false);
   const [carouselScrollEnabled, setCarouselScrollEnabled] = useState(true);
   const carouselScrollX = useRef(new Animated.Value(0)).current;
   const { width } = useWindowDimensions();
@@ -48,7 +51,7 @@ export function HomeScreen({ adapter, currentUserId }: HomeScreenProps) {
   }, [adapter, currentUserId]);
 
   if (serverError) {
-    return <ServerUnavailable error={serverError} />;
+    return <ServerUnavailable error={serverError} onResetSession={onResetSession} />;
   }
 
   if (!dashboard) {
@@ -57,10 +60,15 @@ export function HomeScreen({ adapter, currentUserId }: HomeScreenProps) {
 
   const maxSpend = Math.max(...dashboard.leaderboard.map((row) => row.weeklyBadSpend));
   const carouselCardWidth = Math.min(width - spacing.lg * 2, 420);
+  const newestFeedItems = [...dashboard.activityFeed].sort(
+    (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+  );
+  const previewFeedItems = newestFeedItems.slice(0, 5);
 
   return (
-    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} style={styles.scroll}>
-      <AppHeader />
+    <>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} style={styles.scroll}>
+        <AppHeader />
 
       <Animated.ScrollView
         decelerationRate="fast"
@@ -121,16 +129,49 @@ export function HomeScreen({ adapter, currentUserId }: HomeScreenProps) {
         </View>
       </View>
 
-      <Card>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Live Feed</Text>
-          <Text style={styles.feedCount}>{dashboard.activityFeed.length}</Text>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => setFeedModalOpen(true)}
+          style={({ pressed }) => pressed && styles.pressed}
+        >
+          <Card>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Live Feed</Text>
+              <View style={styles.feedHeaderRight}>
+                <Text style={styles.feedCount}>{dashboard.activityFeed.length}</Text>
+                <View style={styles.expandIcon}>
+                  <Expand color={colors.green} size={17} strokeWidth={2.4} />
+                </View>
+              </View>
+            </View>
+            <View style={styles.feedPreviewList} pointerEvents="none">
+              {previewFeedItems.map((item) => (
+                <ActivityFeedItem currentUserId={currentUserId} item={item} key={item.id} />
+              ))}
+            </View>
+          </Card>
+        </Pressable>
+      </ScrollView>
+
+      <Modal animationType="slide" onRequestClose={() => setFeedModalOpen(false)} presentationStyle="fullScreen" visible={feedModalOpen}>
+        <View style={styles.modalRoot}>
+          <View style={styles.modalTopBar}>
+            <View>
+              <Text style={styles.modalTitle}>Live Feed</Text>
+              <Text style={styles.modalSubtitle}>Newest transactions first</Text>
+            </View>
+            <Pressable accessibilityLabel="Close live feed" accessibilityRole="button" onPress={() => setFeedModalOpen(false)} style={styles.closeButton}>
+              <X color={colors.text} size={22} strokeWidth={2.5} />
+            </Pressable>
+          </View>
+          <ScrollView contentContainerStyle={styles.modalContent} showsVerticalScrollIndicator>
+            {newestFeedItems.map((item) => (
+              <ActivityFeedItem currentUserId={currentUserId} item={item} key={item.id} />
+            ))}
+          </ScrollView>
         </View>
-        {dashboard.activityFeed.map((item) => (
-          <ActivityFeedItem currentUserId={currentUserId} item={item} key={item.id} />
-        ))}
-      </Card>
-    </ScrollView>
+      </Modal>
+    </>
   );
 }
 
@@ -209,5 +250,67 @@ const styles = StyleSheet.create({
     color: colors.textSoft,
     fontFamily: fonts.bodySemi,
     fontSize: 14,
+  },
+  feedHeaderRight: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  expandIcon: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceAlt,
+    borderColor: colors.border,
+    borderRadius: 10,
+    borderWidth: 1,
+    height: 34,
+    justifyContent: 'center',
+    width: 34,
+  },
+  feedPreviewList: {
+    maxHeight: 305,
+    overflow: 'hidden',
+  },
+  pressed: {
+    opacity: 0.7,
+  },
+  modalRoot: {
+    backgroundColor: colors.background,
+    flex: 1,
+  },
+  modalTopBar: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderBottomColor: colors.border,
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.md,
+    paddingTop: spacing.xl,
+  },
+  modalTitle: {
+    color: colors.text,
+    fontFamily: fonts.heading,
+    fontSize: 25,
+  },
+  modalSubtitle: {
+    color: colors.textSoft,
+    fontFamily: fonts.bodyMedium,
+    fontSize: 13,
+    marginTop: 2,
+  },
+  closeButton: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceAlt,
+    borderColor: colors.border,
+    borderRadius: 999,
+    borderWidth: 1,
+    height: 42,
+    justifyContent: 'center',
+    width: 42,
+  },
+  modalContent: {
+    padding: spacing.lg,
+    paddingBottom: spacing.xxl,
   },
 });

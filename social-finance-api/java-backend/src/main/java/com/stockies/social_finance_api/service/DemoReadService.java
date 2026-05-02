@@ -55,7 +55,7 @@ public class DemoReadService {
         dashboard.put("challenge", challenge(challenge, group));
         dashboard.put("leaderboard", weeklyLeaderboard(group.getId(), challenge.id()));
         dashboard.put("graph", weeklyGraph(group.getId(), challenge.id()));
-        dashboard.put("activityFeed", activityFeed(group.getId(), 8));
+        dashboard.put("activityFeed", activityFeed(group.getId(), 30));
         return dashboard;
     }
 
@@ -181,6 +181,7 @@ public class DemoReadService {
     public List<Map<String, Object>> weeklyRecaps(UUID groupId) {
         FriendGroup group = findGroup(groupId);
         return challengeRepository.findAll().stream()
+                .filter(challenge -> challenge.getFriendGroup() != null && group.getId().equals(challenge.getFriendGroup().getId()))
                 .sorted(Comparator.comparing(WeeklyChallenge::getStartDate).reversed())
                 .map(challenge -> recap(group, challenge))
                 .toList();
