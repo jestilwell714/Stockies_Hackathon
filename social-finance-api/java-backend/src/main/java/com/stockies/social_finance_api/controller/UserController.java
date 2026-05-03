@@ -30,7 +30,7 @@ public class UserController {
     }
 
     @GetMapping("/ids")
-    public List<Long> getIds() {
+    public List<UUID> getIds() {
         return userService.getAllUsers().stream()
                 .map(UserDto::getId)
                 .toList();

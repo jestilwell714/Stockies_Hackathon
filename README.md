@@ -5,18 +5,18 @@ Existing Expo frontend, Java Spring backend, Python classifier, and Supabase Pos
 ## Demo Loop
 
 1. Start the Python classifier, Java backend, and Expo frontend.
-2. Each participant enters their name on the Expo join screen.
-3. The backend creates a demo user and assigns them to a demo team with up to 8 people.
-4. Run `./scripts/run-demo-week.sh` from the repo root.
-5. The script sends transactions to the Java backend over about two minutes.
-6. Java sends each transaction to the Python classifier.
-7. Java saves the categorized transaction to Supabase Postgres.
-8. The frontend polls the Java backend and refreshes the live feed, weekly graph, and leaderboard.
-9. At the end, the script rolls every demo team into a new week so the completed week appears in Weekly Memories.
+2. Run `./scripts/run-demo-week.sh` from the repo root.
+3. The script sends transactions to the Java backend over about two minutes.
+4. Java sends each transaction to the Python classifier.
+5. Java saves the categorized transaction to Postgres/H2.
+6. The frontend polls the Java backend and refreshes the live feed, weekly graph, and leaderboard.
+7. Near the end, the script rolls into a new week and sends a few more transactions.
 
 If the Java backend is down, the app shows **Server Unavaliable** and does not fall back to mock data.
 
 ## Python Classifier
+
+The classifier is a FastAPI app defined in `social-finance-api/python-classifier/main_classifier.py`. It loads `.env` files automatically and starts Uvicorn itself when you run the module directly.
 
 ```bash
 cd social-finance-api/python-classifier
@@ -27,26 +27,26 @@ cp .env.example .env
 python main_classifier.py
 ```
 
+If you prefer to run Uvicorn explicitly, use:
+
+```bash
+uvicorn main_classifier:app --host 0.0.0.0 --port 8000 --reload
+```
+
 Default classifier URL: `http://localhost:8000/classify-one`.
 
 ## Java Backend
 
-Supabase demo:
+Use the Maven wrapper so the command works even when Maven is not installed globally.
+
+Local H2 demo:
 
 ```bash
-cp social-finance-api/java-backend/.env.example social-finance-api/java-backend/.env
-open social-finance-api/java-backend/.env
-```
-
-Set `SPRING_DATASOURCE_PASSWORD` to your real Supabase database password, then start the backend:
-
-```bash
-./scripts/run-backend.sh
+cd social-finance-api/java-backend
+./mvnw spring-boot:run
 ```
 
 The backend listens on `http://localhost:8080`. Demo seed data is inserted only when the users table is empty. The seeder creates 8 users, one friend group, banned categories, 8 weekly challenges, and 2 months of mock transactions.
-
-The backend intentionally has no runtime H2 fallback. If `.env` is missing or Supabase is unreachable, Spring Boot fails to start and the frontend shows **Server Unavaliable** instead of writing to a local in-memory database.
 
 Useful endpoints:
 
@@ -57,8 +57,6 @@ GET  /api/groups/00000000-0000-0000-0000-000000000100/points-leaderboard
 GET  /api/groups/00000000-0000-0000-0000-000000000100/activity-feed?limit=8
 GET  /api/users/00000000-0000-0000-0000-000000000001/transactions
 POST /api/transactions/simulate
-POST /api/demo/join
-GET  /api/demo/participants
 POST /api/demo/reset-live-week
 POST /api/demo/roll-week
 ```
@@ -81,7 +79,6 @@ Set these before starting the Java backend:
 ```bash
 export SPRING_DATASOURCE_URL='jdbc:postgresql://aws-0-region.pooler.supabase.com:6543/postgres?sslmode=require'
 export SPRING_DATASOURCE_USERNAME='postgres.your-project-ref'
-export SPRING_DATASOURCE_PASSWORD='your-supabase-database-password'
 export SPRING_DATASOURCE_DRIVER='org.postgresql.Driver'
 export SPRING_JPA_DATABASE_PLATFORM='org.hibernate.dialect.PostgreSQLDialect'
 export SPRING_JPA_HIBERNATE_DDL_AUTO='update'
@@ -90,12 +87,6 @@ export APP_SEED_DEMO_DATA='true'
 ```
 
 Set `APP_SEED_DEMO_DATA=false` if your Supabase database already has users, groups, and a weekly challenge.
-
-You can also put these values in `social-finance-api/java-backend/.env` and start the backend with:
-
-```bash
-./scripts/run-backend.sh
-```
 
 Equivalent placeholders live in:
 
@@ -131,6 +122,13 @@ python main_classifier.py
 
 # terminal 2
 cd social-finance-api/java-backend
+
+set -a
+source .env
+set +a
+
+echo $SPRING_DATASOURCE_URL
+
 ./mvnw spring-boot:run
 
 # terminal 3
@@ -144,9 +142,7 @@ Then run the scripted transaction stream from the repo root:
 API_BASE_URL=http://localhost:8080 ./scripts/run-demo-week.sh
 ```
 
-Before running the script, have participants open the Expo app and enter their name. The backend assigns new participants into `Demo Team 1`, `Demo Team 2`, and so on, with up to 8 people per team.
-
-The script discovers all joined users through `GET /api/demo/participants`, resets every live demo team to Sunday, sends dated transactions for Sunday through Saturday over about two minutes, then rolls every team into a new week. Keep the Expo app open on the home or leaderboard tab while it runs, then open **Profile -> Weekly Memories** to show the completed recap.
+The script resets the live week, sends demo transactions every few seconds, rolls the backend into a new week, then sends a final burst of transactions. Keep the Expo app open on the home or leaderboard tab to see the live feed and leaderboard change while it runs.
 
 ## Expo Frontend
 
@@ -163,9 +159,47 @@ Frontend env:
 
 ```bash
 EXPO_PUBLIC_SKIMP_API_URL=http://localhost:8080
+EXPO_PUBLIC_SKIMP_CURRENT_USER_ID=00000000-0000-0000-0000-000000000001
+EXPO_PUBLIC_SKIMP_CURRENT_GROUP_ID=00000000-0000-0000-0000-000000000100
+EXPO_PUBLIC_SKIMP_CURRENT_CHALLENGE_ID=00000000-0000-0000-0000-000000000200
 ```
 
-The app stores the joined demo user/group on the device with AsyncStorage. To rejoin as a different person during testing, clear Expo app storage or reinstall the app.
+## Vercel Deployment
+
+Deploy the frontend from the `front-end` directory.
+
+Vercel project settings:
+
+```text
+Root Directory: front-end
+Build Command: npm run build
+Output Directory: dist
+```
+
+Set these environment variables in Vercel before deploying:
+
+```bash
+EXPO_PUBLIC_SKIMP_API_URL=https://your-backend-tunnel.example.com
+EXPO_PUBLIC_SKIMP_CURRENT_USER_ID=00000000-0000-0000-0000-000000000001
+EXPO_PUBLIC_SKIMP_CURRENT_GROUP_ID=00000000-0000-0000-0000-000000000100
+EXPO_PUBLIC_SKIMP_CURRENT_CHALLENGE_ID=00000000-0000-0000-0000-000000000200
+```
+
+If you change the backend tunnel URL, update `EXPO_PUBLIC_SKIMP_API_URL` and redeploy the frontend so the web build picks up the new value.
+
+## Cloudflare Tunnel
+
+Use Cloudflare Tunnel to expose the Java backend to the deployed Vercel app.
+
+Quick tunnel for local development:
+
+```bash
+cloudflared tunnel --url http://localhost:8080
+```
+
+Take the public HTTPS URL Cloudflare prints and set it as `EXPO_PUBLIC_SKIMP_API_URL` in Vercel.
+
+For a stable production setup, create a named tunnel and map it to a fixed hostname in your Cloudflare account, then use that hostname as the frontend API URL.
 
 ## Verification
 

@@ -1,7 +1,7 @@
 import { Expand, X } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 
-import { ActivityIndicator, Animated, NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Animated, Modal, NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 
 import { ActivityFeedItem } from '../components/ActivityFeedItem';
@@ -28,6 +28,7 @@ export function HomeScreen({ adapter, currentUserId, onResetSession }: HomeScree
   const carouselScrollX = useRef(new Animated.Value(0)).current;
   const carouselRef = useRef<ScrollView | null>(null);
   const { width } = useWindowDimensions();
+  const [simulating, setSimulating] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -99,7 +100,6 @@ export function HomeScreen({ adapter, currentUserId, onResetSession }: HomeScree
   );
   const previewFeedItems = newestFeedItems.slice(0, 5);
 
-  const [simulating, setSimulating] = useState(false);
   const simulateTransaction = async () => {
     setSimulating(true);
     try {
@@ -114,7 +114,8 @@ export function HomeScreen({ adapter, currentUserId, onResetSession }: HomeScree
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} style={styles.scroll}>
+    <>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} style={styles.scroll}>
       <AppHeader />
 
       <Animated.ScrollView

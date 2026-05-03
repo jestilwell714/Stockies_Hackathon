@@ -57,13 +57,13 @@ type MemoriesScreenProps = {
 };
 
 
-export function MemoriesScreen({ adapter, groupId, currentUserId, onBack }: MemoriesScreenProps) {
+export function MemoriesScreen({ adapter, groupId, currentUserId, onBack, onResetSession }: MemoriesScreenProps) {
   const defaultMonthIndex = useMemo(
     () => getCurrentWeekPointer()?.monthIndex ?? months.length - 1,
     [],
   );
   const [recaps, setRecaps] = useState<WeeklyRecap[]>();
-  const [serverError, setServerError] = useState(false);
+  const [serverError, setServerError] = useState<unknown>();
   const [activeMonth, setActiveMonth] = useState(defaultMonthIndex);
   const [storyOpen, setStoryOpen] = useState(false);
   const [storyContext, setStoryContext] = useState<{ weekLabel: string; weekYear: string } | null>(null);
