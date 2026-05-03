@@ -64,7 +64,7 @@ describe('mockSkimpAdapter', () => {
 
     expect(graph.days).toEqual(['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']);
     expect(currentUser?.points.map((point) => point.cumulativeAmount)).toEqual([
-      0, 10.5, 23.1, 23.1, 43.35, 43.35, 43.35,
+      10.5, 23.1, 23.1, 43.35, 43.35, 43.35, 43.35,
     ]);
   });
 

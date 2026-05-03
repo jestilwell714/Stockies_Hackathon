@@ -1,18 +1,48 @@
-import { ArrowLeft, ArrowRight } from 'lucide-react-native';
-import { useEffect, useRef, useState } from 'react';
+import { ArrowLeft, ArrowRight, Check, X } from 'lucide-react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { Logo } from '../components/Logo';
+import { ServerUnavailable } from '../components/ServerUnavailable';
+import { weeklyStoryMock } from '../data/weeklyStoryMockData';
 import type { SkimpDataAdapter, WeeklyRecap } from '../data/types';
+import { challengeRewardPoints, getDemoChallengeForMemoriesWeek } from '../data/mockDemoWeeklyChallenges';
+import { MEMORIES_MONTHS, memoriesWeekFlatIndex, type MonthWeek } from '../data/memoriesCalendar';
+import { buildRecapByWeekKey, getRecapForCalendarWeek, getViewerWeekOutcome } from '../data/memoriesWeekOutcome';
+import { WeeklyStoryRecapScreen } from './WeeklyStoryRecapScreen';
 import { colors, fonts, shadow, spacing } from '../theme';
 
-const months = [
-  { label: 'Jan', fullLabel: 'January 2026', year: '2026', weekRanges: ['Jan 4 - Jan 10', 'Jan 11 - Jan 17', 'Jan 18 - Jan 24', 'Jan 25 - Jan 31'] },
-  { label: 'Feb', fullLabel: 'February 2026', year: '2026', weekRanges: ['Feb 1 - Feb 7', 'Feb 8 - Feb 14', 'Feb 15 - Feb 21', 'Feb 22 - Feb 28'] },
-  { label: 'Mar', fullLabel: 'March 2026', year: '2026', weekRanges: ['Mar 1 - Mar 7', 'Mar 8 - Mar 14', 'Mar 15 - Mar 21', 'Mar 22 - Mar 28'] },
-  { label: 'Apr', fullLabel: 'April 2026', year: '2026', weekRanges: ['Apr 5 - Apr 11', 'Apr 12 - Apr 18', 'Apr 19 - Apr 25', 'Apr 26 - May 2'] },
-  { label: 'May', fullLabel: 'May 2026', year: '2026', weekRanges: ['May 3 - May 9', 'May 10 - May 16', 'May 17 - May 23', 'May 24 - May 30'] },
-];
+const months = MEMORIES_MONTHS;
+
+function startOfDay(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+function isDateInWeek(now: Date, week: MonthWeek): boolean {
+  const day = startOfDay(now).getTime();
+  return day >= startOfDay(week.start).getTime() && day <= startOfDay(week.end).getTime();
+}
+
+/** Which week contains "today" in our demo grid, if any. */
+function getCurrentWeekPointer(now: Date = new Date()): { monthIndex: number; weekIndex: number } | null {
+  for (let mi = 0; mi < months.length; mi++) {
+    const wks = months[mi].weeks;
+    for (let wi = 0; wi < wks.length; wi++) {
+      if (isDateInWeek(now, wks[wi])) return { monthIndex: mi, weekIndex: wi };
+    }
+  }
+  return null;
+}
+
+/** Past = week fully ended before today; current = today in range; future = week not started. */
+function getWeekTimelineRelation(week: MonthWeek, now: Date = new Date()): 'past' | 'current' | 'future' {
+  const day = startOfDay(now).getTime();
+  const start = startOfDay(week.start).getTime();
+  const end = startOfDay(week.end).getTime();
+  if (end < day) return 'past';
+  if (start <= day && day <= end) return 'current';
+  return 'future';
+}
 
 const monthItemWidth = 116;
 const monthGap = 12;
@@ -23,25 +53,50 @@ type MemoriesScreenProps = {
   groupId: string;
   currentUserId: string;
   onBack: () => void;
+  onResetSession?: () => void;
 };
 
-export function MemoriesScreen({ adapter, groupId, onBack }: MemoriesScreenProps) {
+
+export function MemoriesScreen({ adapter, groupId, currentUserId, onBack, onResetSession }: MemoriesScreenProps) {
+  const defaultMonthIndex = useMemo(
+    () => getCurrentWeekPointer()?.monthIndex ?? months.length - 1,
+    [],
+  );
   const [recaps, setRecaps] = useState<WeeklyRecap[]>();
-  const [activeMonth, setActiveMonth] = useState(months.length - 1);
+  const [serverError, setServerError] = useState<unknown>();
+  const [activeMonth, setActiveMonth] = useState(defaultMonthIndex);
+  const [storyOpen, setStoryOpen] = useState(false);
+  const [storyContext, setStoryContext] = useState<{ weekLabel: string; weekYear: string } | null>(null);
   const { width } = useWindowDimensions();
-  const monthScrollX = useRef(new Animated.Value((months.length - 1) * monthSnap)).current;
+  const monthScrollX = useRef(new Animated.Value(defaultMonthIndex * monthSnap)).current;
   const monthScrollRef = useRef<ScrollView>(null);
   const contentAnim = useRef(new Animated.Value(1)).current;
+  const recapByWeekKey = useMemo(() => buildRecapByWeekKey(recaps ?? []), [recaps]);
 
   useEffect(() => {
-    adapter.getWeeklyRecaps(groupId).then(setRecaps);
+    adapter.getWeeklyRecaps(groupId)
+      .then((nextRecaps) => {
+        setRecaps(nextRecaps);
+        setServerError(undefined);
+      })
+      .catch((error) => setServerError(error));
   }, [adapter, groupId]);
 
+  /** Sync horizontal offset whenever the selected month or layout can change (carousel exists only after recaps load). */
   useEffect(() => {
-    requestAnimationFrame(() => {
-      monthScrollRef.current?.scrollTo({ x: activeMonth * monthSnap, animated: false });
+    if (!recaps) return;
+
+    const x = activeMonth * monthSnap;
+    const scrollIntoView = () => {
+      monthScrollRef.current?.scrollTo({ x, animated: false });
+      monthScrollX.setValue(x);
+    };
+
+    const id = requestAnimationFrame(() => {
+      requestAnimationFrame(scrollIntoView);
     });
-  }, []);
+    return () => cancelAnimationFrame(id);
+  }, [recaps, width, activeMonth]);
 
   useEffect(() => {
     contentAnim.setValue(0);
@@ -54,11 +109,16 @@ export function MemoriesScreen({ adapter, groupId, onBack }: MemoriesScreenProps
     }).start();
   }, [activeMonth, contentAnim]);
 
+  if (serverError) {
+    return <ServerUnavailable error={serverError} onResetSession={onResetSession} />;
+  }
+
   if (!recaps) {
     return <Loading />;
   }
 
   const activeMonthData = months[activeMonth];
+  const currentWeekPointer = getCurrentWeekPointer();
 
   return (
     <View style={styles.root}>
@@ -102,7 +162,6 @@ export function MemoriesScreen({ adapter, groupId, onBack }: MemoriesScreenProps
                 key={month.fullLabel}
                 onPress={() => {
                   setActiveMonth(index);
-                  monthScrollRef.current?.scrollTo({ x: index * monthSnap, animated: true });
                 }}
               >
                 <Animated.View style={[styles.monthCard, active && styles.activeMonthCard, { opacity, transform: [{ scale }, { translateY }] }]}>
@@ -137,22 +196,163 @@ export function MemoriesScreen({ adapter, groupId, onBack }: MemoriesScreenProps
             },
           ]}
         >
-          {activeMonthData.weekRanges.map((range, index) => (
-            <Pressable accessibilityRole="button" key={`${activeMonthData.label}-${range}`} style={({ pressed }) => [styles.weekCard, pressed && styles.pressed]}>
-              <View>
-                <Text style={styles.weekTitle}>Week {index + 1}</Text>
-                <Text style={styles.weekRange}>{range}</Text>
-              </View>
-              <View style={styles.weekFooter}>
-                <Text style={styles.challengeTitle}>Weekly Challenge</Text>
-                <View style={styles.arrowCircle}>
-                  <ArrowRight color={colors.text} size={22} strokeWidth={2.4} />
+          {activeMonthData.weeks.map((week, index) => {
+            const demo = getDemoChallengeForMemoriesWeek(activeMonth, index);
+            const isThisWeek =
+              currentWeekPointer !== null &&
+              currentWeekPointer.monthIndex === activeMonth &&
+              currentWeekPointer.weekIndex === index;
+            const weekRelation = getWeekTimelineRelation(week);
+            const recapAvailable = weekRelation === 'past';
+            const flatWeekIndex = memoriesWeekFlatIndex(activeMonth, index);
+            const recapForWeek = getRecapForCalendarWeek(recapByWeekKey, week);
+            const weekOutcome = getViewerWeekOutcome({
+              weekRelation,
+              currentUserId,
+              recapForWeek,
+              flatWeekIndex,
+            });
+            const outcomeA11y =
+              weekOutcome === 'pass' ? ', passed' : weekOutcome === 'fail' ? ', did not pass' : '';
+            return (
+              <Pressable
+                accessibilityHint={
+                  recapAvailable ? 'Opens recap for this week' : 'Recap is only available after this week ends'
+                }
+                accessibilityLabel={
+                  isThisWeek
+                    ? `${demo.title}, ${week.rangeLabel}, current week`
+                    : `${demo.title}, ${week.rangeLabel}${outcomeA11y}`
+                }
+                accessibilityRole="button"
+                accessibilityState={{ disabled: !recapAvailable }}
+                disabled={!recapAvailable}
+                key={`${activeMonthData.label}-${week.rangeLabel}`}
+                onPress={() => {
+                  if (!recapAvailable) return;
+                  setStoryContext({ weekLabel: week.rangeLabel, weekYear: activeMonthData.year });
+                  setStoryOpen(true);
+                }}
+                style={({ pressed }) => [
+                  styles.weekCard,
+                  isThisWeek && styles.weekCardCurrent,
+                  weekRelation === 'future' && styles.weekCardFuture,
+                  weekOutcome === 'pass' && styles.weekCardPastPass,
+                  weekOutcome === 'fail' && styles.weekCardPastFail,
+                  pressed && recapAvailable && styles.pressed,
+                ]}
+              >
+                <View style={styles.weekCardHeader}>
+                  <View style={styles.weekCardHeaderText}>
+                    <View style={styles.weekTitleRow}>
+                      <Text
+                        style={[styles.weekTitle, weekOutcome === 'fail' && styles.challengeTextCrossedOut]}
+                      >
+                        Week {index + 1}
+                      </Text>
+                      {weekOutcome === 'pass' ? (
+                        <Check
+                          accessibilityElementsHidden
+                          importantForAccessibility="no"
+                          color={colors.green}
+                          size={20}
+                          strokeWidth={2.5}
+                          style={styles.weekOutcomeIcon}
+                        />
+                      ) : weekOutcome === 'fail' ? (
+                        <X
+                          accessibilityElementsHidden
+                          importantForAccessibility="no"
+                          color={colors.coral}
+                          size={20}
+                          strokeWidth={3.2}
+                          style={styles.weekOutcomeIcon}
+                        />
+                      ) : null}
+                    </View>
+                    <Text
+                      style={[
+                        styles.weekRange,
+                        isThisWeek && styles.weekRangeCurrent,
+                        weekOutcome === 'fail' && styles.challengeTextCrossedOut,
+                      ]}
+                    >
+                      {week.rangeLabel}
+                    </Text>
+                    {!recapAvailable ? (
+                      <Text style={styles.weekRecapHint}>
+                        {weekRelation === 'current'
+                          ? 'Recap unlocks when this week ends'
+                          : 'Upcoming week'}
+                      </Text>
+                    ) : null}
+                  </View>
+                  {isThisWeek ? (
+                    <View style={styles.thisWeekBadge}>
+                      <Text style={styles.thisWeekBadgeText}>This week</Text>
+                    </View>
+                  ) : null}
                 </View>
-              </View>
-            </Pressable>
-          ))}
+                <View style={styles.weekFooter}>
+                  <View style={styles.challengeBlock}>
+                    <Text
+                      style={[
+                        styles.demoChallengeTitle,
+                        weekOutcome === 'fail' && styles.challengeTextCrossedOut,
+                      ]}
+                    >
+                      {demo.title}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.demoChallengeDescription,
+                        weekOutcome === 'fail' && styles.challengeTextCrossedOut,
+                      ]}
+                      numberOfLines={3}
+                    >
+                      {demo.description}
+                    </Text>
+                    <View style={styles.demoChallengeMeta}>
+                      <Text style={styles.demoChallengeCategory}>{demo.category}</Text>
+                      <Text style={styles.demoChallengeMetaSep}>·</Text>
+                      <Text style={styles.demoChallengeDifficulty}>Lvl {demo.difficulty}</Text>
+                      <Text style={styles.demoChallengeMetaSep}>·</Text>
+                      <Text style={styles.demoChallengePoints}>
+                        +{challengeRewardPoints(demo.difficulty)} points
+                      </Text>
+                      {recapAvailable ? (
+                        <>
+                          <Text style={styles.demoChallengeMetaSep}>·</Text>
+                          <Text style={styles.demoRecapCta}>Tap for recap</Text>
+                        </>
+                      ) : null}
+                    </View>
+                  </View>
+                  <View
+                    style={[
+                      styles.arrowCircle,
+                      styles.weekFooterArrow,
+                      isThisWeek && styles.arrowCircleCurrent,
+                      !recapAvailable && styles.arrowCircleMuted,
+                    ]}
+                  >
+                    <ArrowRight color={recapAvailable ? colors.text : colors.muted} size={22} strokeWidth={2.4} />
+                  </View>
+                </View>
+              </Pressable>
+            );
+          })}
         </Animated.View>
       </ScrollView>
+      <WeeklyStoryRecapScreen
+        data={weeklyStoryMock}
+        onClose={() => {
+          setStoryOpen(false);
+          setStoryContext(null);
+        }}
+        visible={storyOpen}
+        weekContext={storyContext}
+      />
     </View>
   );
 }
@@ -263,12 +463,65 @@ const styles = StyleSheet.create({
     gap: spacing.screenGap,
     paddingHorizontal: spacing.lg,
   },
+  weekCardHeader: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  weekCardHeaderText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  weekTitleRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  weekOutcomeIcon: {
+    opacity: 0.92,
+  },
+  challengeTextCrossedOut: {
+    opacity: 0.82,
+    textDecorationColor: colors.coral,
+    textDecorationLine: 'line-through',
+  },
   weekCard: {
     ...shadow,
     backgroundColor: colors.surface,
     borderRadius: 16,
+    borderWidth: 2,
+    borderColor: 'transparent',
     gap: spacing.xl,
     padding: spacing.lg,
+  },
+  weekCardCurrent: {
+    backgroundColor: colors.mint,
+    borderColor: colors.green,
+  },
+  weekCardFuture: {
+    opacity: 0.78,
+    backgroundColor: colors.surfaceAlt,
+  },
+  weekCardPastPass: {
+    borderLeftColor: 'rgba(15, 138, 80, 0.42)',
+    borderLeftWidth: 4,
+  },
+  weekCardPastFail: {
+    borderLeftColor: 'rgba(255, 158, 158, 0.88)',
+    borderLeftWidth: 4,
+  },
+  thisWeekBadge: {
+    backgroundColor: colors.green,
+    borderRadius: 999,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+  },
+  thisWeekBadgeText: {
+    color: colors.surface,
+    fontFamily: fonts.bodySemi,
+    fontSize: 11,
   },
   pressed: {
     opacity: 0.72,
@@ -284,15 +537,75 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 6,
   },
+  weekRangeCurrent: {
+    color: colors.text,
+    fontFamily: fonts.bodySemi,
+  },
+  weekRecapHint: {
+    color: colors.textSoft,
+    fontFamily: fonts.body,
+    fontSize: 12,
+    marginTop: spacing.sm,
+    lineHeight: 16,
+  },
   weekFooter: {
-    alignItems: 'center',
+    alignItems: 'flex-start',
     flexDirection: 'row',
+    gap: spacing.md,
     justifyContent: 'space-between',
   },
-  challengeTitle: {
+  challengeBlock: {
+    flex: 1,
+    minWidth: 0,
+  },
+  demoChallengeTitle: {
     color: colors.text,
     fontFamily: fonts.headingSemi,
-    fontSize: 19,
+    fontSize: 18,
+    lineHeight: 24,
+  },
+  demoChallengeDescription: {
+    color: colors.textSoft,
+    fontFamily: fonts.body,
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: spacing.sm,
+  },
+  demoChallengeMeta: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: spacing.md,
+  },
+  demoChallengeCategory: {
+    color: colors.green,
+    fontFamily: fonts.bodySemi,
+    fontSize: 11,
+    textTransform: 'capitalize',
+  },
+  demoChallengeMetaSep: {
+    color: colors.textSoft,
+    fontFamily: fonts.body,
+    fontSize: 11,
+  },
+  demoChallengeDifficulty: {
+    color: colors.textSoft,
+    fontFamily: fonts.bodyMedium,
+    fontSize: 11,
+  },
+  demoChallengePoints: {
+    color: colors.text,
+    fontFamily: fonts.bodySemi,
+    fontSize: 11,
+  },
+  demoRecapCta: {
+    color: colors.blueStrong,
+    fontFamily: fonts.bodySemi,
+    fontSize: 11,
+  },
+  weekFooterArrow: {
+    alignSelf: 'center',
   },
   arrowCircle: {
     alignItems: 'center',
@@ -301,5 +614,12 @@ const styles = StyleSheet.create({
     height: 46,
     justifyContent: 'center',
     width: 46,
+  },
+  arrowCircleCurrent: {
+    backgroundColor: colors.surface,
+  },
+  arrowCircleMuted: {
+    opacity: 0.45,
+    backgroundColor: colors.surfaceAlt,
   },
 });

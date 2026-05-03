@@ -164,6 +164,34 @@ export type HomeDashboard = {
   activityFeed: ActivityFeedItem[];
 };
 
+export type DemoSession = {
+  userId: string;
+  username: string;
+  displayName: string;
+  groupId: string;
+  groupName: string;
+  inviteCode: string;
+  challengeId: string;
+};
+
+export type ApiDebugInfo = {
+  baseUrl: string;
+  path: string;
+  url: string;
+  method: string;
+  platform: string;
+  configuredApiBaseUrl?: string;
+  inferredApiBaseUrl?: string;
+};
+
+export type SkimpApiError = Error & {
+  debug?: ApiDebugInfo & {
+    status?: number;
+    statusText?: string;
+    causeMessage?: string;
+  };
+};
+
 export type MerchantCacheEntry = {
   category: SpendingCategory;
   method: CategoryMethod;
@@ -176,11 +204,18 @@ export type ClassifierResult = {
 };
 
 export type SkimpDataAdapter = {
+  joinDemo(displayName: string): Promise<DemoSession>;
   getHomeDashboard(userId: string): Promise<HomeDashboard>;
   getWeeklyLeaderboard(groupId: string, challengeId: string): Promise<LeaderboardRow[]>;
   getPointsLeaderboard(groupId: string): Promise<PointsLeaderboardRow[]>;
   getWeeklyCumulativeSpend(groupId: string, challengeId: string): Promise<WeeklyGraph>;
   getActivityFeed(groupId: string, limit?: number): Promise<ActivityFeedItem[]>;
+  simulateTransaction(input: {
+    userId: string;
+    amount: number;
+    description: string;
+    timestamp?: string;
+  }): Promise<Transaction>;
   getProfileSummary(
     userId: string,
     groupId: string,
